@@ -444,3 +444,113 @@ main {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- assessment ---------- */
+
+.assessment-page {
+  max-width: 62ch;
+}
+
+.assessment {
+  margin: 2rem 0;
+}
+
+.assessment-item {
+  margin: 0 0 1.5rem;
+  padding: 0;
+  border: 0;
+}
+
+.assessment-item legend {
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  padding: 0;
+}
+
+.assessment-prompt {
+  font-family: var(--serif);
+  font-size: 1.25rem;
+  margin: 0.4rem 0 1.2rem;
+}
+
+.assessment-options {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.assessment-options label {
+  display: flex;
+  gap: 0.7rem;
+  align-items: baseline;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.assessment-options label:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+}
+
+.assessment-options input {
+  accent-color: var(--accent);
+}
+
+.assessment-options label.is-correct {
+  border-color: #4f8a5b;
+}
+
+.assessment-options label.is-wrong {
+  border-color: #a5523f;
+}
+
+.assessment-verdict {
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.assessment-verdict.is-correct {
+  color: #7fbd8c;
+}
+
+.assessment-verdict.is-wrong {
+  color: #d98a72;
+}
+
+.assessment-live {
+  min-height: 1.2em;
+  color: var(--ink-dim);
+  font-size: 0.85rem;
+}
+
+.assessment-actions {
+  margin-top: 1.5rem;
+}
+
+.assessment-actions button.button {
+  font: inherit;
+  font-weight: 600;
+  border: 0;
+  cursor: pointer;
+}
+
+.assessment-actions button[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.assessment-misses {
+  padding-left: 1.2rem;
+}
+
+.assessment-misses li {
+  margin-bottom: 1.2rem;
+}
+
+.assessment-back {
+  margin-top: 3rem;
+  font-size: 0.9rem;
+}
