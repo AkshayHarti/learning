@@ -1,0 +1,172 @@
+/* Act I–II lab components. Reuses the tokens in style.css; the shell is course.css.
+ * Every selector is .d-* so nothing collides with the decoder course's .c- labs.
+ */
+
+/* ------------------------------------------------------------------- frame */
+
+.d-lab{display:flex;flex-direction:column;gap:12px}
+.d-cap{
+  display:block;margin:6px 0 -2px;font:10px/1.4 var(--mono);
+  letter-spacing:.12em;text-transform:uppercase;color:var(--mut)
+}
+.d-cap i{font-style:normal;text-transform:none;letter-spacing:0;color:#5d646f}
+
+.d-state,.d-in{
+  width:100%;background:#0f1216;border:1px solid var(--line);border-radius:0;
+  color:var(--fg);padding:9px 11px;font:12.5px/1.55 var(--mono);resize:vertical
+}
+.d-state:hover,.d-in:hover{border-color:#323a45}
+.d-state:focus,.d-in:focus{border-color:var(--accent);outline:none}
+
+.d-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:2px}
+.d-hint{font:11px/1.5 var(--mono);color:#5d646f}
+
+.d-btn{
+  background:transparent;border:1px solid var(--line);border-radius:0;color:var(--soft);
+  padding:6px 11px;font:11px/1 var(--mono);letter-spacing:.05em;cursor:pointer
+}
+.d-btn:hover{border-color:var(--accent);color:var(--accent)}
+.d-btn.ghost{color:#5d646f;border-color:#1a1f26}
+
+/* -------------------------------------------------------------- two panes */
+
+.d-two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px}
+.d-two > *{min-width:0}
+@media(max-width:760px){.d-two{grid-template-columns:1fr}}
+
+.d-pane{border:1px solid var(--line);background:#0c1013;display:flex;flex-direction:column;min-width:0}
+.d-ph{
+  display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;
+  padding:8px 11px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.012)
+}
+.d-ph .t{font:10px/1.4 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--soft)}
+.d-ph .n{font:10px/1.4 var(--mono);color:#5d646f}
+.d-pb{padding:11px;flex:1;min-width:0}
+.d-pane.d-dec{border-color:rgba(125,211,160,.35)}
+.d-pane.d-dec .d-ph .t{color:var(--accent)}
+
+/* --------------------------------------------------------------- outputs */
+
+.d-out{
+  margin:0;font:12px/1.7 var(--mono);color:var(--soft);white-space:pre-wrap;
+  min-height:2.6em;overflow-wrap:anywhere
+}
+.d-out.d-req{color:#8b929e;font-size:11px;line-height:1.6;min-height:3.4em}
+
+.d-bars-host{margin:2px 0 8px}
+.d-bars-host:empty{display:none}
+
+.d-kv{display:flex;flex-direction:column;gap:1px;margin-top:6px;border-top:1px solid #1a1f26}
+.d-kv > div{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid #161b21}
+.d-kv .k{font:10.5px/1.5 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.d-kv .v{font:11.5px/1.5 var(--mono);color:var(--fg);font-variant-numeric:tabular-nums;text-align:right}
+.d-kv .v.acc{color:var(--accent)}
+
+.d-verdict{
+  font:11.5px/1.65 var(--mono);color:var(--mut);margin-top:9px;
+  border-left:1px solid var(--line);padding-left:9px
+}
+.d-verdict b{color:var(--fg);font-weight:400}
+.d-verdict .acc{color:var(--accent)}
+
+.d-note{
+  font:11.5px/1.65 var(--mono);color:var(--mut);margin:11px 0 0;
+  border-left:1px solid var(--line);padding-left:9px;max-width:78ch
+}
+
+.d-big{
+  display:flex;align-items:baseline;gap:8px;font:30px/1 var(--mono);
+  font-variant-numeric:tabular-nums;color:var(--accent);margin:2px 0 8px
+}
+.d-big span{font:10px/1.4 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+
+.d-mini{height:5px;background:#11151a;border-left:1px solid #2c333d;margin:0 0 8px}
+.d-mini i{display:block;height:100%;background:var(--accent);opacity:.75}
+
+/* ------------------------------------------------------------- tabs + grid */
+
+.d-tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:2px}
+.d-tab{
+  background:transparent;border:0;border-bottom:1px solid transparent;border-radius:0;
+  color:var(--mut);padding:8px 14px 7px;font:11px/1 var(--mono);letter-spacing:.1em;
+  text-transform:uppercase;cursor:pointer
+}
+.d-tab:hover{color:var(--soft)}
+.d-tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+
+.d-grid{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 16px;
+  border-top:1px solid var(--line);margin-top:6px
+}
+@media(max-width:700px){.d-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.d-cell{
+  display:flex;flex-direction:column;gap:2px;padding:7px 0;
+  border-bottom:1px solid #1a1f26;min-width:0
+}
+.d-cell .k{font:9.5px/1.35 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+.d-cell .v{font:12.5px/1.4 var(--mono);color:var(--fg);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.d-cell .v.acc{color:var(--accent)}
+
+.d-two-num{display:grid;grid-template-columns:1fr 1fr;gap:10px;border-top:1px solid var(--line)}
+.d-stat{display:flex;flex-direction:column;gap:1px;padding:9px 0;border-bottom:1px solid #1a1f26}
+.d-stat b{font:20px/1.15 var(--mono);font-variant-numeric:tabular-nums;color:var(--fg);font-weight:400}
+.d-stat b i{font-style:normal;font-size:11px;color:var(--mut)}
+.d-stat span{font:9.5px/1.4 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mut)}
+
+/* --------------------------------------------------------- option editor */
+
+.d-opt-editor{display:flex;flex-direction:column;gap:4px;margin-top:2px}
+.d-opt-row{display:grid;grid-template-columns:132px minmax(0,1fr);gap:5px}
+@media(max-width:620px){.d-opt-row{grid-template-columns:104px minmax(0,1fr)}}
+.d-opt-row .d-name{color:var(--accent)}
+.d-opt-row .d-def{color:var(--soft);font-size:11.5px}
+
+.d-wrong{display:flex;flex-direction:column;gap:3px;margin-top:9px}
+.d-wrong > div{font:10.5px/1.5 var(--mono);color:#8b929e;overflow-wrap:anywhere}
+.d-wrong .d-wl{color:#5d646f}
+.d-wrong b{color:#c8a0a0;font-weight:400}
+.d-wrong i{font-style:normal;color:#5d646f}
+
+/* --------------------------------------------------------------- controls */
+
+.d-ctl-row{display:flex;flex-direction:column;gap:2px}
+.d-ctl-row .ctl{grid-template-columns:180px minmax(80px,1fr) 82px;gap:12px;margin:8px 0}
+@media(max-width:620px){
+  .d-ctl-row .ctl{grid-template-columns:132px minmax(0,1fr)}
+  .d-ctl-row .ctl output{grid-column:2;text-align:left}
+}
+
+.d-chart{margin-top:6px}
+.d-chart svg{width:100%;height:auto}
+
+/* ------------------------------------------------------- Act II statistics */
+
+.d-charts{margin-top:10px}
+.d-charts .d-chart{margin-top:0}
+
+.d-rel,.d-strip{display:block;width:100%;height:auto}
+.d-strip-host{margin-top:4px}
+.d-ax{font:9px/1 var(--mono);fill:#5d646f}
+
+.d-grid.d-grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:700px){.d-grid.d-grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.d-tbl-host{margin-top:4px;overflow-x:auto}
+.d-table{
+  width:100%;border-collapse:collapse;font:11px/1.5 var(--mono);
+  font-variant-numeric:tabular-nums
+}
+.d-table th{
+  text-align:right;padding:5px 8px;border-bottom:1px solid var(--line);
+  font:9.5px/1.4 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mut)
+}
+.d-table th:first-child,.d-table td:first-child{text-align:left}
+.d-table td{padding:5px 8px;border-bottom:1px solid #161b21;color:var(--soft);text-align:right}
+.d-table td:first-child{color:var(--fg)}
+.d-table tr.on td{color:var(--fg);background:rgba(125,211,160,.05)}
+.d-table tr.warn td{color:#c8a0a0}
+
+.d-quote{
+  font:11.5px/1.6 var(--mono);color:#8b929e;margin:0 0 8px;
+  overflow-wrap:anywhere
+}

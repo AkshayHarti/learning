@@ -1,0 +1,26 @@
+{
+  "slug": "decision-models",
+  "title": "Decision models",
+  "promise": "Ten steps that separate a calibrated judgement from a confident guess.",
+  "kind": "app",
+  "status": "live",
+  "order": 20,
+  "hours": 3,
+  "tags": ["decision-making", "calibration"],
+  "app": { "entry": "decision-course.html" },
+  "assessments": [
+    {
+      "id": "decision-check",
+      "title": "Assess yourself",
+      "engine": "custom",
+      "href": "assessment.html"
+    }
+  ],
+  "contents": [
+    {
+      "title": "The decision curriculum",
+      "href": "app/DECISION-CURRICULUM.md",
+      "note": "all ten steps written out in prose"
+    }
+  ]
+}

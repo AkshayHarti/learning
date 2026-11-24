@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Decision models · LLM first principles</title>
+<meta name="description" content="Ten interactive steps on typed probabilistic decision models: state in, per-question distributions out, then the statistics that make the output usable. Every lab fits and runs its own small model in the browser.">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/course.css">
+<link rel="stylesheet" href="assets/dec.css">
+</head>
+<body>
+<div class="c-shell">
+
+  <aside class="c-rail" aria-label="Course index">
+    <div>
+      <p class="c-brand"><i></i>LLM first principles</p>
+      <h1 class="c-rail-title">Decision models</h1>
+      <p class="c-rail-sub">Acts I–II · 10 steps<br>beginner → advanced<br>everything runs locally</p>
+    </div>
+
+    <nav class="c-nav" id="c-nav"></nav>
+
+    <div class="c-progress" aria-hidden="true"><i id="c-progress-bar" style="width:0"></i></div>
+    <p class="c-rail-foot" id="c-rail-foot">0 of 10 visited</p>
+  </aside>
+
+  <main class="c-main">
+    <div class="c-inner">
+      <article id="c-lesson">
+        <noscript>
+          <div class="c-body"><p>This course is a set of live simulations; it needs JavaScript.
+          The written curriculum lives in <code>DECISION-CURRICULUM.md</code>.</p></div>
+        </noscript>
+      </article>
+    </div>
+  </main>
+
+</div>
+
+<!-- labs.js is loaded for its DOM helpers only; no TOY model is needed. -->
+<script src="assets/labs.js"></script>
+<script src="assets/dec-engine.js"></script>
+<script src="assets/dec-labs.js"></script>
+<script src="assets/dec-labs-2.js"></script>
+<script src="assets/dec-course.js"></script>
+</body>
+</html>
