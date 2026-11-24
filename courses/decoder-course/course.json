@@ -1,0 +1,38 @@
+{
+  "slug": "decoder-course",
+  "title": "The decoder course",
+  "promise": "Twelve interactive steps from next-token prediction to alignment.",
+  "kind": "app",
+  "status": "live",
+  "order": 10,
+  "hours": 8,
+  "tags": ["llm", "transformers"],
+  "app": { "entry": "course.html" },
+  "contents": [
+    {
+      "title": "Entropy and compression",
+      "href": "app/01-entropy.html",
+      "note": "bits, surprisal, cross-entropy, perplexity"
+    },
+    {
+      "title": "Byte-pair encoding",
+      "href": "app/02-bpe.html",
+      "note": "tokenization, vocabulary budget"
+    },
+    {
+      "title": "Embeddings",
+      "href": "app/03-embeddings.html",
+      "note": "cosine similarity, superposition"
+    },
+    {
+      "title": "Attention",
+      "href": "app/04-attention.html",
+      "note": "scaled dot product, softmax, causal mask"
+    },
+    {
+      "title": "Sampling",
+      "href": "app/05-sampling.html",
+      "note": "logits, temperature, top-k, min-p"
+    }
+  ]
+}

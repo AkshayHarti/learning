@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>02 · Tokens are learned, not given</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="kicker">LLM first principles · module 2</p>
+  <h1>Tokens are learned, not given</h1>
+  <p class="sub">Byte-pair encoding builds a vocabulary bottom-up by merging whichever adjacent pair is most frequent, over and over, until the budget runs out.</p>
+</header>
+
+<main>
+  <section class="panel" aria-labelledby="h-run">
+    <div class="panel-head">
+      <h2 id="h-run">1 · Learn merges</h2>
+      <span class="readouts">
+        <span>step <b id="r-step">0</b></span>
+        <span>vocab <b id="r-vocab">0</b></span>
+        <span>tokens <b id="r-tokens">0</b></span>
+      </span>
+    </div>
+
+    <p>
+      Start with single characters plus an end-of-word marker (·). Each step counts every adjacent pair,
+      merges the winner everywhere, and adds the result to the vocabulary. Frequency alone decides;
+      nothing about meaning or grammar enters the decision.
+    </p>
+
+    <p class="mono" style="margin:18px 0 0;color:#e8e6e1;border-left:1px solid #232830;padding-left:12px">
+      the quick brown fox jumps over the lazy dog. the quicker fox jumped
+    </p>
+
+    <div class="chips" id="chips" aria-live="polite" aria-label="Current tokenization"></div>
+
+    <div class="readouts" style="margin-top:16px">
+      <span>merging <b id="r-pair">—</b></span>
+      <span>count <b id="r-count">0</b></span>
+      <span>vocab size <b id="r-vocab2">0</b></span>
+    </div>
+
+    <div class="btns">
+      <button class="btn" id="b-step" type="button">step</button>
+      <button class="btn" id="b-ten" type="button">run 10</button>
+      <button class="btn" id="b-auto" type="button" aria-pressed="false">auto</button>
+      <button class="btn" id="b-reset" type="button">reset</button>
+    </div>
+
+    <div class="ctl" style="margin-top:18px">
+      <label class="lbl" for="speed">speed</label>
+      <input id="speed" type="range" min="40" max="800" value="260" step="20"
+             aria-label="Auto-play speed in milliseconds per merge">
+      <output id="speed-out" for="speed">260 ms</output>
+    </div>
+
+    <p class="note" id="trade">—</p>
+  </section>
+
+  <div class="grid2">
+    <section class="panel" aria-labelledby="h-table">
+      <div class="panel-head"><h2 id="h-table">2 · Merge log</h2></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>rank</th><th>pair</th><th>count</th><th>new token</th></tr></thead>
+          <tbody id="log"><tr><td colspan="4" style="color:#666d78">no merges yet</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-path">
+      <div class="panel-head"><h2 id="h-path">3 · Tokenizer pathologies</h2></div>
+      <p>Same learned vocabulary, three inputs that expose where frequency leads it.</p>
+      <div class="btns" id="presets">
+        <button class="btn" type="button" data-i="0" aria-pressed="true">1234 + 5678</button>
+        <button class="btn" type="button" data-i="1" aria-pressed="false">café naïve</button>
+        <button class="btn" type="button" data-i="2" aria-pressed="false">the ×4</button>
+      </div>
+      <p class="mono" id="probe" style="margin:14px 0 0;color:#e8e6e1"></p>
+      <div class="chips" id="probe-chips" aria-live="polite" aria-label="Tokenization of the probe string"></div>
+      <p class="note" id="probe-note">—</p>
+    </section>
+  </div>
+
+  <details>
+    <summary>Why this matters</summary>
+    <p>
+      Tokenization is the layer where text stops being text, and most "model can't do X" complaints
+      start here. Arithmetic breaks because digits arrive in arbitrary chunks; uncommon scripts break
+      because they were rare in the training corpus and got few merges; repetition is cheap because
+      frequent strings become single tokens. Every token also costs money and context: a tokenizer
+      that needs 30% more tokens for your language makes every call 30% more expensive. None of this
+      is learned by the transformer — it is frozen before training begins, and the model has to work
+      with whatever segmentation it inherits.
+    </p>
+  </details>
+
+  <p class="foot">Concept: <a href="../">byte-pair encoding</a>, subword tokenization, vocabulary budget.</p>
+</main>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var SOURCE = 'the quick brown fox jumps over the lazy dog. the quicker fox jumped';
+  var MAX_MERGES = 48;
+  var EOW = '\u00b7';
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function splitWords(text) {
+    return text.match(/[A-Za-z]+|[^A-Za-z\s]+/g) || [];
+  }
+  function seedWords(text) {
+    return splitWords(text).map(function (w) {
+      return /^[A-Za-z]+$/.test(w) ? w.split('').concat([EOW]) : w.split('');
+    });
+  }
+
+  // --- real BPE training over the corpus -------------------------------
+  function train(text, maxMerges) {
+    var words = seedWords(text);
+    var base = new Set();
+    words.forEach(function (w) { w.forEach(function (t) { base.add(t); }); });
+    var steps = [];
+    var rank = 0;
+
+    while (rank < maxMerges) {
+      var counts = new Map();
+      words.forEach(function (w) {
+        for (var i = 0; i < w.length - 1; i++) {
+          var k = w[i] + ' ' + w[i + 1];
+          counts.set(k, (counts.get(k) || 0) + 1);
+        }
+      });
+      if (!counts.size) break;
+
+      var best = null, bestCount = -1;
+      counts.forEach(function (c, k) {
+        if (c > bestCount || (c === bestCount && (best === null || k < best))) {
+          best = k; bestCount = c;
+        }
+      });
+
+      var parts = best.split(' ');
+      var a = parts[0], b = parts[1];
+      words = words.map(function (w) {
+        var out = [];
+        for (var i = 0; i < w.length; i++) {
+          if (i < w.length - 1 && w[i] === a && w[i + 1] === b) {
+            out.push(a + b); i++;
+          } else { out.push(w[i]); }
+        }
+        return out;
+      });
+
+      rank++;
+      steps.push({
+        a: a, b: b, count: bestCount, merged: a + b, rank: rank,
+        words: words.map(function (w) { return w.slice(); }),
+        vocab: base.size + rank
+      });
+    }
+    return { steps: steps, base: base };
+  }
+
+  // Apply the learned merge list, in rank order, to an arbitrary string.
+  function encode(text, steps) {
+    var words = seedWords(text);
+    var tokens = [];
+    words.forEach(function (toks) {
+      steps.forEach(function (s) {
+        var next = [];
+        for (var i = 0; i < toks.length; i++) {
+          if (i < toks.length - 1 && toks[i] === s.a && toks[i + 1] === s.b) {
+            next.push(s.merged); i++;
+          } else { next.push(toks[i]); }
+        }
+        toks = next;
+      });
+      tokens = tokens.concat(toks);
+    });
+    return tokens;
+  }
+
+  var model = train(SOURCE, MAX_MERGES);
+  var cur = 0;            // number of merges applied, 0..steps.length
+  var timer = null;
+  var probeIndex = 0;
+  var PROBES = [
+    { text: '1234 + 5678',
+      note: 'digits never appeared in the corpus, so they are unmerged single characters. A real byte-level tokenizer would emit one token per digit here, which is why arithmetic is done in the tokenizer\u2019s blind spot.' },
+    { text: 'caf\u00e9 na\u00efve',
+      note: 'the accented characters are outside the learned alphabet. Real tokenizers fall back to bytes, so a single \u00e9 can become two or three tokens depending on the UTF-8 encoding.' },
+    { text: 'the the the the',
+      note: 'the most frequent word in the corpus, merged into a single token. Fifteen characters arrive as four tokens, so repetition is cheap in context and in cost \u2014 which is exactly why models fall into loops once a repeated pattern starts.' }
+  ];
+
+  function stateWords() {
+    if (cur === 0) return seedWords(SOURCE);
+    return model.steps[cur - 1].words;
+  }
+
+  function renderChips() {
+    var words = stateWords();
+    var fresh = cur > 0 ? model.steps[cur - 1].merged : null;
+    var html = words.map(function (w) {
+      var inner = w.map(function (t) {
+        var cls = 'chip';
+        if (fresh !== null && t === fresh) cls += ' on';
+        return '<span class="' + cls + '">' + esc(t) + '</span>';
+      }).join('');
+      return '<span style="display:inline-flex">' + inner + '</span>';
+    }).join('<span class="wsep"></span>');
+    $('chips').innerHTML = html;
+
+    var total = words.reduce(function (a, w) { return a + w.length; }, 0);
+    var vocab = cur === 0 ? model.base.size : model.steps[cur - 1].vocab;
+    $('r-step').textContent = cur + ' / ' + model.steps.length;
+    $('r-vocab').textContent = vocab;
+    $('r-vocab2').textContent = vocab;
+    $('r-tokens').textContent = total;
+
+    if (cur === 0) {
+      $('r-pair').textContent = 'nothing yet';
+      $('r-count').textContent = '0';
+    } else {
+      var s = model.steps[cur - 1];
+      $('r-pair').textContent = s.a + ' + ' + s.b + ' \u2192 ' + s.merged;
+      $('r-count').textContent = s.count;
+    }
+
+    var chars = Array.from(SOURCE).length;
+    var bitsPerToken = Math.log2(vocab);
+    $('trade').textContent =
+      'characters ' + chars + ' \u00b7 tokens ' + total +
+      ' \u00b7 ' + (chars / total).toFixed(2) + ' chars per token \u00b7 ' +
+      bitsPerToken.toFixed(2) + ' bits per token in a flat code \u00b7 ' +
+      (total * bitsPerToken).toFixed(0) + ' bits total vs ' + (chars * 6) + ' at 6 bits/char.';
+
+    var body = model.steps.slice(0, cur).reverse().slice(0, 24);
+    if (!body.length) {
+      $('log').innerHTML = '<tr><td colspan="4" style="color:#666d78">no merges yet</td></tr>';
+    } else {
+      $('log').innerHTML = body.map(function (s, i) {
+        return '<tr' + (i === 0 ? ' class="fresh"' : '') + '>' +
+          '<td class="n">' + s.rank + '</td>' +
+          '<td>' + esc(s.a) + ' + ' + esc(s.b) + '</td>' +
+          '<td class="n">' + s.count + '</td>' +
+          '<td>' + esc(s.merged) + '</td></tr>';
+      }).join('');
+    }
+    renderProbe();
+  }
+
+  function renderProbe() {
+    var applied = model.steps;   // the fully trained tokenizer, not the step-through state
+    var p = PROBES[probeIndex];
+    var toks = encode(p.text, applied);
+    $('probe').textContent = p.text;
+    $('probe-chips').innerHTML = toks.map(function (t) {
+      return '<span class="chip">' + esc(t) + '</span>';
+    }).join('');
+    $('probe-note').textContent =
+      toks.length + ' tokens for ' + Array.from(p.text).length + ' characters. ' + p.note;
+  }
+
+  function setIndex(i) {
+    cur = Math.max(0, Math.min(model.steps.length, i));
+    renderChips();
+    $('b-step').disabled = cur >= model.steps.length;
+    $('b-ten').disabled = cur >= model.steps.length;
+  }
+
+  function stopAuto() {
+    if (timer) { clearInterval(timer); timer = null; }
+    $('b-auto').setAttribute('aria-pressed', 'false');
+    $('b-auto').textContent = 'auto';
+  }
+
+  function startAuto() {
+    stopAuto();
+    if (cur >= model.steps.length) return;
+    $('b-auto').setAttribute('aria-pressed', 'true');
+    $('b-auto').textContent = 'pause';
+    timer = setInterval(function () {
+      if (cur >= model.steps.length) { stopAuto(); return; }
+      setIndex(cur + 1);
+    }, Number($('speed').value));
+  }
+
+  $('b-step').addEventListener('click', function () {
+    stopAuto(); setIndex(cur + 1);
+  });
+  $('b-ten').addEventListener('click', function () {
+    stopAuto(); setIndex(cur + 10);
+  });
+  $('b-reset').addEventListener('click', function () {
+    stopAuto(); setIndex(0);
+  });
+  $('b-auto').addEventListener('click', function () {
+    if (timer) stopAuto(); else startAuto();
+  });
+  $('speed').addEventListener('input', function () {
+    $('speed-out').textContent = this.value + ' ms';
+    if (timer) startAuto();
+  });
+  Array.prototype.forEach.call($('presets').querySelectorAll('button'), function (b) {
+    b.addEventListener('click', function () {
+      probeIndex = Number(b.dataset.i);
+      Array.prototype.forEach.call($('presets').querySelectorAll('button'), function (o) {
+        o.setAttribute('aria-pressed', String(o === b));
+      });
+      renderProbe();
+    });
+  });
+
+  setIndex(0);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>05 · Logits become text</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="kicker">LLM first principles · module 5</p>
+  <h1>Logits become text</h1>
+  <p class="sub">A language model outputs one number per token in the vocabulary; sampling is the small set of edits that turns those numbers into a choice.</p>
+</header>
+
+<main>
+  <section class="panel" aria-labelledby="h-dist">
+    <div class="panel-head">
+      <h2 id="h-dist">1 · The distribution</h2>
+      <span class="readouts">
+        <span>kept <b id="r-kept">12</b> / 12</span>
+        <span>mass kept <b id="r-mass">1.00</b></span>
+      </span>
+    </div>
+    <p>
+      Twelve candidates with fixed logits. Temperature divides the logits, then softmax turns them
+      into probabilities; min-p, top-k and top-p delete candidates; the survivors are renormalised.
+      Dimmed rows are the ones that were removed.
+    </p>
+
+    <div class="controls">
+      <div class="ctl">
+        <label class="lbl" for="temp">temperature</label>
+        <input id="temp" type="range" min="0" max="2" value="0.8" step="0.05" aria-label="Sampling temperature">
+        <output id="temp-out" for="temp">0.80</output>
+      </div>
+      <div class="ctl">
+        <label class="lbl" for="k">top-k</label>
+        <input id="k" type="range" min="0" max="12" value="0" step="1" aria-label="Top-k cutoff, zero disables">
+        <output id="k-out" for="k">off</output>
+      </div>
+      <div class="ctl">
+        <label class="lbl" for="p">top-p</label>
+        <input id="p" type="range" min="0.1" max="1" value="1" step="0.01" aria-label="Nucleus top-p cutoff">
+        <output id="p-out" for="p">1.00</output>
+      </div>
+      <div class="ctl">
+        <label class="lbl" for="minp">min-p</label>
+        <input id="minp" type="range" min="0" max="0.5" value="0" step="0.01" aria-label="Min-p cutoff relative to the top token">
+        <output id="minp-out" for="minp">0.00</output>
+      </div>
+      <div class="ctl">
+        <label class="lbl" for="seed">seed</label>
+        <input id="seed" class="input" type="number" min="0" max="999999" step="1" value="7" aria-label="Random seed">
+        <output id="seed-out" for="seed">07</output>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button class="btn" id="draw" type="button">sample again</button>
+      <span class="note" style="margin:0;align-self:center">advances the seed; the same seed always draws the same token</span>
+    </div>
+
+    <div class="bars" id="bars" aria-live="polite"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-out">
+    <div class="panel-head">
+      <h2 id="h-out">2 · Twelve draws</h2>
+      <span class="readouts"><span>first draw <b id="r-first">—</b></span></span>
+    </div>
+    <div class="chips" id="seq" aria-live="polite" aria-label="Twelve sampled tokens"></div>
+    <p class="hint" id="verdict" style="color:#7dd3a0">—</p>
+    <p class="note" id="why">—</p>
+    <p class="note">
+      The distribution is frozen on purpose. A real model re-runs the whole network for every token,
+      and the next distribution depends on the token just sampled — which is why one bad draw can
+      send a sentence somewhere it never recovers from.
+    </p>
+  </section>
+
+  <details>
+    <summary>Why this matters</summary>
+    <p>
+      Sampling is the difference between a model that always says the same thing and a model you can
+      use. Temperature zero gives you the argmax, which is deterministic and prone to loops; a long
+      tail gives you variety and nonsense. Top-k caps the tail by rank, top-p caps it by accumulated
+      probability, and min-p caps it relative to the best candidate, so the cutoff adapts when the
+      model is unsure. Every setting is a trade between coherence and surprise, and none of them
+      changes what the model knows — only which of its guesses you see.
+    </p>
+  </details>
+
+  <p class="foot">Concept: <a href="../">nucleus sampling</a>, logits, softmax temperature, top-k, min-p.</p>
+</main>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+
+  var CAND = [
+    { tok: 'the', logit: 4.1 }, { tok: ',', logit: 3.8 }, { tok: 'cat', logit: 2.9 },
+    { tok: 'dog', logit: 2.7 }, { tok: 'sat', logit: 2.1 }, { tok: 'ran', logit: 1.9 },
+    { tok: '\u2026', logit: 1.6 }, { tok: 'quietly', logit: 1.2 }, { tok: 'yesterday', logit: 0.8 },
+    { tok: 'purple', logit: 0.1 }, { tok: '42', logit: -0.4 }, { tok: 'photosynthesis', logit: -1.1 }
+  ];
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // mulberry32: small, fast, seedable. Same seed => same stream.
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      var t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+
+  function baseDist(T) {
+    if (T < 0.02) {
+      var mi = 0;
+      for (var i = 1; i < CAND.length; i++) if (CAND[i].logit > CAND[mi].logit) mi = i;
+      return CAND.map(function (c, i) { return { tok: c.tok, p: i === mi ? 1 : 0 }; });
+    }
+    var ex = CAND.map(function (c) { return Math.exp(c.logit / T); });
+    var sum = ex.reduce(function (a, b) { return a + b; }, 0);
+    return CAND.map(function (c, i) { return { tok: c.tok, p: ex[i] / sum }; });
+  }
+
+  function applyFilters(dist, k, topP, minP) {
+    var rows = dist.map(function (r, i) {
+      return { i: i, tok: r.tok, p: r.p, kept: r.p > 1e-12 };
+    });
+    var maxP = Math.max.apply(null, rows.map(function (r) { return r.p; }));
+
+    if (minP > 0) rows.forEach(function (r) { if (r.p < minP * maxP) r.kept = false; });
+
+    if (k > 0) {
+      var byRank = rows.slice().sort(function (a, b) { return b.p - a.p; });
+      byRank.forEach(function (r, i) { if (i >= k) r.kept = false; });
+    }
+
+    if (topP < 1) {
+      var live = rows.filter(function (r) { return r.kept; })
+        .sort(function (a, b) { return b.p - a.p; });
+      var cum = 0, cut = false;
+      live.forEach(function (r) {
+        if (cut) { r.kept = false; return; }
+        cum += r.p;
+        if (cum >= topP) cut = true;   // keep the token that crosses the threshold
+      });
+    }
+
+    var kept = rows.filter(function (r) { return r.kept; });
+    var mass = kept.reduce(function (a, r) { return a + r.p; }, 0) || 1;
+    kept.forEach(function (r) { r.final = r.p / mass; });
+    return { rows: rows, kept: kept, mass: mass };
+  }
+
+  function pick(rng, kept) {
+    var x = rng() * kept.reduce(function (a, r) { return a + r.final; }, 0);
+    var acc = 0;
+    for (var i = 0; i < kept.length; i++) {
+      acc += kept[i].final;
+      if (x < acc) return kept[i];
+    }
+    return kept[kept.length - 1];
+  }
+
+  function verdict(T, k, topP, minP) {
+    if (T < 0.02) return ['greedy: deterministic, loops',
+      'Temperature zero is argmax. The same context always produces the same token, and a model that has learned "the" is likely after "the" will say it again.'];
+    if (T >= 1.25 && k === 0 && topP >= 0.999 && minP === 0) return ['long tail: incoherent',
+      'Every candidate stays eligible. The tail is unlikely per token but enormous in aggregate, so strange words surface often.'];
+    if (minP > 0 && k === 0 && topP >= 0.999) return ['min-p: keeps the tail only when the head is uncertain',
+      'The cutoff is relative to the best token. A confident model loses its tail; an uncertain one keeps it, which is the behaviour top-p approximates with a fixed mass.'];
+    if (k === 1) return ['top-1: deterministic, loops',
+      'Only the best candidate survives, so sampling degenerates back to greedy.'];
+    if (k > 0 && topP < 0.999) return ['top-k and top-p: bounded but still varied',
+      'Two cutoffs, whichever bites first. Top-k sets a hard rank limit; top-p removes tokens past the mass threshold.'];
+    if (k > 0) return ['top-k: a hard cap on the tail',
+      'The same number of candidates is kept whether the model is certain or guessing, which is why the tail can survive in obvious contexts.'];
+    if (topP < 0.999) return ['nucleus only: the cutoff moves with the model\u2019s confidence',
+      'Top-p keeps the smallest set whose probability adds up to p, so the candidate count adapts to each step.'];
+    if (T <= 0.55) return ['cold: repetitive, high-confidence',
+      'Low temperature concentrates mass on the leader. Coherent, and prone to saying the same thing twice.'];
+    return ['no filter: the full distribution',
+      'All twelve candidates are eligible. At moderate temperature that is varied but still plausible.'];
+  }
+
+  function render() {
+    var T = Number($('temp').value);
+    var k = Number($('k').value);
+    var topP = Number($('p').value);
+    var minP = Number($('minp').value);
+    var seed = Number($('seed').value) || 0;
+
+    $('temp-out').textContent = T.toFixed(2);
+    $('k-out').textContent = k === 0 ? 'off' : String(k);
+    $('p-out').textContent = topP.toFixed(2);
+    $('minp-out').textContent = minP.toFixed(2);
+    $('seed-out').textContent = String(seed).padStart(2, '0');
+
+    var dist = baseDist(T);
+    var res = applyFilters(dist, k, topP, minP);
+    var maxP = Math.max.apply(null, dist.map(function (r) { return r.p; }));
+
+    var sorted = res.rows.slice().sort(function (a, b) { return b.p - a.p; });
+    $('bars').innerHTML = sorted.map(function (r) {
+      var width = Math.max(0.5, (r.p / maxP) * 100);
+      var val = r.kept ? r.final.toFixed(3) : r.p.toFixed(3);
+      return '<div class="bar-row' + (r.kept ? '' : ' dropped') + '">' +
+        '<span class="bar-tok">' + esc(r.tok) + '</span>' +
+        '<span class="bar-track"><i style="width:' + width.toFixed(2) + '%"></i></span>' +
+        '<span class="bar-val">' + val + '</span></div>';
+    }).join('');
+
+    $('r-kept').textContent = res.kept.length;
+    $('r-mass').textContent = res.mass.toFixed(2);
+
+    var rng = mulberry32(seed);
+    var seq = [];
+    for (var i = 0; i < 12; i++) seq.push(pick(rng, res.kept));
+
+    $('seq').innerHTML = seq.map(function (r) {
+      return '<span class="chip" title="p = ' + r.final.toFixed(3) + '">' + esc(r.tok) + '</span>';
+    }).join('');
+    $('r-first').textContent = seq[0].tok;
+
+    var v = verdict(T, k, topP, minP);
+    $('verdict').textContent = v[0];
+    $('why').textContent = v[1];
+  }
+
+  $('draw').addEventListener('click', function () {
+    var s = (Number($('seed').value) + 1) % 1000000;
+    $('seed').value = s;
+    render();
+  });
+  ['temp', 'k', 'p', 'minp', 'seed'].forEach(function (id) {
+    $(id).addEventListener('input', render);
+    $(id).addEventListener('change', render);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

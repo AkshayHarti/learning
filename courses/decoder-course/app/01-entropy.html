@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>01 · Prediction is compression</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="kicker">LLM first principles · module 1</p>
+  <h1>Prediction is compression</h1>
+  <p class="sub">A model that can guess the next character cheaply has compressed the text, because prediction and compression are both paid for in bits.</p>
+</header>
+
+<main>
+  <section class="panel" aria-labelledby="h-measure">
+    <div class="panel-head">
+      <h2 id="h-measure">1 · Measure a string</h2>
+      <span class="readouts"><span>bits = information, not storage</span></span>
+    </div>
+
+    <label class="lbl" for="text">Input text</label>
+    <input id="text" class="input" type="text" value="the cat sat on the mat"
+           aria-label="Text to measure" autocomplete="off" spellcheck="false">
+
+    <div class="stats">
+      <div class="stat"><span class="k">characters</span><span class="v" id="s-n">0</span></div>
+      <div class="stat"><span class="k">entropy H</span><span class="v" id="s-h">0</span><span class="u">bits / char</span></div>
+      <div class="stat"><span class="k">total information</span><span class="v" id="s-tot">0</span><span class="u">bits</span></div>
+      <div class="stat"><span class="k">fixed 6-bit code</span><span class="v" id="s-naive">0</span><span class="u">bits</span></div>
+      <div class="stat"><span class="k">compression</span><span class="v" id="s-ratio">0</span><span class="u">× smaller</span></div>
+      <div class="stat"><span class="k">perplexity 2^H</span><span class="v" id="s-ppl">0</span><span class="u">effective choices</span></div>
+    </div>
+
+    <p class="hint" id="hint">—</p>
+  </section>
+
+  <section class="panel" aria-labelledby="h-chart">
+    <div class="panel-head">
+      <h2 id="h-chart">2 · Where the bits come from</h2>
+    </div>
+    <p>
+      Each bar is one symbol's share of the string. The entropy is the average surprise per symbol:
+      rare symbols cost more, common symbols cost less. A uniform alphabet of 64 symbols would make
+      every character cost exactly 6 bits, which is why that is the honest baseline to beat.
+    </p>
+    <svg id="chart" viewBox="0 0 1000 260" role="img"
+         aria-label="Bar chart of per-character frequency in the input string"></svg>
+    <p class="note" id="chart-note">—</p>
+  </section>
+
+  <div class="grid2">
+    <section class="panel" aria-labelledby="h-guess">
+      <div class="panel-head"><h2 id="h-guess">3 · One guess</h2></div>
+      <p>
+        The model assigns a probability p to the character that actually comes next. The price of that
+        guess is its surprisal, −log₂ p. Drag the confidence and watch the price move non-linearly.
+      </p>
+
+      <div class="ctl">
+        <label class="lbl" for="p">confidence p</label>
+        <input id="p" type="range" min="0" max="1000" value="500" step="1"
+               aria-label="Confidence assigned to the true next character">
+        <output id="p-out" for="p">0.032</output>
+      </div>
+
+      <div class="stats" style="margin-top:18px">
+        <div class="stat"><span class="k">surprisal</span><span class="v" id="surp">0</span><span class="u">bits</span></div>
+        <div class="stat"><span class="k">if right, you saved</span><span class="v" id="save">0</span><span class="u">bits vs 6</span></div>
+        <div class="stat"><span class="k">typical p</span><span class="v" id="typ">0</span><span class="u">at H above</span></div>
+      </div>
+
+      <p class="note" id="guess-note">confident and right = cheap; confident and wrong = catastrophic.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-why">
+      <div class="panel-head"><h2 id="h-why">4 · Read the numbers</h2></div>
+      <p>
+        H·N is the information floor: no encoding of this exact string can do better on average.
+        Perplexity is 2^H, the size of a uniform alphabet that would be equally hard to guess from.
+        A model with perplexity 8 is choosing between eight equally likely characters at every step.
+      </p>
+      <p class="note">
+        A real LLM does not see characters. It sees tokens, and its bits-per-token are compared
+        against a much larger branching factor. The accounting is identical; only the unit changes.
+      </p>
+    </section>
+  </div>
+
+  <details>
+    <summary>Why this matters</summary>
+    <p>
+      Training a language model is literally minimising cross-entropy: the average surprisal it assigns
+      to the next token in real text. That single number explains why models get better at everything
+      at once when they get better at prediction — better compression means a richer internal model of
+      grammar, facts and style. It also explains why "just make it bigger" works for a while: more
+      parameters can store more of the regularity that prediction rewards. And it explains why a model
+      that is confidently wrong is expensive twice: it pays a large loss during training and it emits
+      nonsense at inference.
+    </p>
+  </details>
+
+  <p class="foot">Concept: <a href="../">Shannon entropy</a>, surprisal, cross-entropy, perplexity.</p>
+</main>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var FIXED_BITS = 6; // 2^6 = 64 symbols
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function analyse(str) {
+    var chars = Array.from(str);
+    var n = chars.length;
+    var counts = new Map();
+    chars.forEach(function (ch) {
+      counts.set(ch, (counts.get(ch) || 0) + 1);
+    });
+    var rows = [];
+    counts.forEach(function (c, ch) { rows.push({ ch: ch, c: c, p: c / n }); });
+    rows.sort(function (a, b) { return b.c - a.c || (a.ch < b.ch ? -1 : 1); });
+    var H = 0;
+    rows.forEach(function (r) { H -= r.p * Math.log2(r.p); });
+    return { n: n, rows: rows, H: rows.length ? H : 0 };
+  }
+
+  function drawChart(rows, H) {
+    var W = 1000, BASE = 196, MAXH = 132, PAD = 10;
+    var maxP = Math.max.apply(null, rows.map(function (r) { return r.p; }).concat([0.0001]));
+    var bw = (W - PAD * 2) / Math.max(rows.length, 1);
+    var out = '<text x="10" y="16" class="svg-mut">H = ' + H.toFixed(3) +
+              ' bits/char · ' + rows.length + ' distinct symbols</text>';
+    out += '<line x1="10" y1="' + BASE + '" x2="' + (W - 10) + '" y2="' + BASE +
+           '" stroke="#232830" stroke-width="1"></line>';
+    rows.forEach(function (r, i) {
+      var frac = r.p / maxP;
+      var h = Math.max(2, frac * MAXH);
+      var x = PAD + i * bw;
+      var w = Math.max(4, bw - 14);
+      out += '<rect x="' + (x + 7) + '" y="' + (BASE - h) + '" width="' + w + '" height="' + h +
+             '" fill="#7dd3a0" opacity="' + (0.22 + 0.62 * frac).toFixed(2) + '"></rect>';
+      var label = r.ch === ' ' ? '\u2423' : r.ch;
+      out += '<text x="' + (x + bw / 2) + '" y="' + (BASE + 22) +
+             '" text-anchor="middle" class="svg-lbl">' + esc(label) + '</text>';
+      out += '<text x="' + (x + bw / 2) + '" y="' + (BASE + 38) +
+             '" text-anchor="middle" class="svg-mut2">' + r.c + '</text>';
+      out += '<text x="' + (x + bw / 2) + '" y="' + (BASE - h - 7) +
+             '" text-anchor="middle" class="svg-mut2">' + (r.p * 100).toFixed(0) + '%</text>';
+    });
+    $('chart').innerHTML = out;
+  }
+
+  var last = null;
+
+  function render() {
+    var str = $('text').value;
+    if (!str.length) {
+      last = null;
+      ['s-n', 's-h', 's-tot', 's-naive', 's-ppl'].forEach(function (id) { $(id).textContent = '0'; });
+      $('s-ratio').textContent = '1.00';
+      $('chart').innerHTML = '<text x="10" y="16" class="svg-mut">nothing to measure</text>';
+      $('chart-note').textContent = 'type a string';
+      $('hint').textContent = 'type a string to measure its information content';
+      updateGuess();
+      return;
+    }
+    var a = analyse(str);
+    last = a;
+
+    $('s-n').textContent = a.n;
+    $('s-h').textContent = a.H.toFixed(3);
+    $('s-tot').textContent = (a.H * a.n).toFixed(1);
+    $('s-naive').textContent = a.n * FIXED_BITS;
+    $('s-ratio').textContent = a.H > 0 ? (FIXED_BITS / a.H).toFixed(2) : '1.00';
+    $('s-ppl').textContent = Math.pow(2, a.H).toFixed(2);
+
+    drawChart(a.rows, a.H);
+
+    $('hint').textContent =
+      'H\u00b7N = ' + (a.H * a.n).toFixed(1) + ' bits is the floor for this string. ' +
+      'The fixed code spends ' + (a.n * FIXED_BITS) + ' bits, so it wastes ' +
+      ((a.n * FIXED_BITS) - a.H * a.n).toFixed(1) + ' bits (' +
+      (100 * (1 - a.H / FIXED_BITS)).toFixed(0) + '% of the budget).';
+
+    $('chart-note').textContent =
+      'top symbol \u201c' + (a.rows[0].ch === ' ' ? '\u2423' : a.rows[0].ch) + '\u201d at ' +
+      (a.rows[0].p * 100).toFixed(1) + '% · lowest symbol ' +
+      (a.rows[a.rows.length - 1].p * 100).toFixed(1) +
+      '% · a flat 6-bit code ignores both extremes.';
+
+    updateGuess();
+  }
+
+  function updateGuess() {
+    var t = Number($('p').value) / 1000;         // 0..1
+    var p = Math.pow(10, -3 + 3 * t);            // 0.001 .. 1
+    var bits = -Math.log2(p);
+    $('p-out').textContent = p >= 0.01 ? p.toFixed(3) : p.toFixed(4);
+    $('surp').textContent = bits.toFixed(2);
+    $('save').textContent = (FIXED_BITS - bits).toFixed(2);
+    var H = last ? last.H : 0;
+    $('typ').textContent = Math.pow(2, -H).toFixed(3);
+
+    var note;
+    if (p > 0.9) {
+      note = 'You are nearly certain. Surprisal is close to zero: the right answer is cheap, ' +
+             'and if you are wrong you will never notice the 6 bits you lost.';
+    } else if (p > 0.4) {
+      note = 'A two-way guess costs about one bit. This is what a good model looks like on ' +
+             'predictable text: a small set of plausible continuations.';
+    } else if (p > 0.05) {
+      note = 'You are hedging. Surprisal is several bits: the model is admitting that many ' +
+             'continuations are possible, and the code has to reserve space for all of them.';
+    } else {
+      note = 'A rare prediction is expensive when it is right and devastating when it is wrong. ' +
+             'Large loss on a confident miss is what gradient descent punishes hardest.';
+    }
+    $('guess-note').textContent = note + ' confident and right = cheap; confident and wrong = catastrophic.';
+  }
+
+  $('text').addEventListener('input', render);
+  $('p').addEventListener('input', updateGuess);
+  render();
+})();
+</script>
+</body>
+</html>

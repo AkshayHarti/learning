@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>03 · Meaning is geometry</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="kicker">LLM first principles · module 3</p>
+  <h1>Meaning is geometry</h1>
+  <p class="sub">An embedding turns a word into a point, so similarity becomes an angle and analogy becomes vector arithmetic.</p>
+</header>
+
+<main>
+  <section class="panel" aria-labelledby="h-map">
+    <div class="panel-head">
+      <h2 id="h-map">1 · A hand-built space</h2>
+      <span class="readouts"><span>40 words · 2 dimensions · cosine similarity</span></span>
+    </div>
+    <p>
+      These coordinates are invented, not trained. They still show the only thing that matters:
+      words used in similar contexts end up pointing in similar directions. Click a word.
+    </p>
+    <svg id="map" viewBox="0 0 700 640" role="group"
+         aria-label="Scatter plot of forty words in two dimensions"></svg>
+  </section>
+
+  <div class="grid2">
+    <section class="panel" aria-labelledby="h-nb">
+      <div class="panel-head">
+        <h2 id="h-nb">2 · Nearest neighbours</h2>
+        <span class="readouts"><span id="nb-head">—</span></span>
+      </div>
+      <table>
+        <thead><tr><th>word</th><th>cosine</th><th>angle</th></tr></thead>
+        <tbody id="nb-body"><tr><td colspan="3" style="color:#666d78">pick a word</td></tr></tbody>
+      </table>
+      <p class="note" id="nb-note">Cosine ignores length and compares direction only, which is why "cat" and "cats" can sit close even when one vector is longer.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-analogy">
+      <div class="panel-head"><h2 id="h-analogy">3 · Analogy mode</h2></div>
+      <p>Compute a − b + c and look for the nearest word to the result.</p>
+      <div class="ctl" style="grid-template-columns:24px 1fr">
+        <span class="lbl">a</span>
+        <select class="input" id="sa" aria-label="Word a"></select>
+      </div>
+      <div class="ctl" style="grid-template-columns:24px 1fr">
+        <span class="lbl">b</span>
+        <select class="input" id="sb" aria-label="Word b, subtracted"></select>
+      </div>
+      <div class="ctl" style="grid-template-columns:24px 1fr">
+        <span class="lbl">c</span>
+        <select class="input" id="sc" aria-label="Word c, added"></select>
+      </div>
+      <p class="mono" id="ana-out" style="margin:16px 0 0;color:#7dd3a0">—</p>
+      <div class="chips" id="ana-list"></div>
+      <p class="note" id="ana-note">—</p>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="h-proj">
+    <div class="panel-head">
+      <h2 id="h-proj">4 · The dimensionality illusion</h2>
+      <span class="readouts"><span>5-NN preserved <b id="keep">0%</b></span></span>
+    </div>
+    <p>
+      Project every point onto one axis and a plane's worth of structure has to fit into a line:
+      some neighbour links must break, and points from different clusters can land on the same spot.
+      Rotate the axis and watch the share of the original five-nearest-neighbour graph that survives.
+    </p>
+    <div class="ctl">
+      <label class="lbl" for="angle">axis angle</label>
+      <input id="angle" type="range" min="0" max="179" value="35" step="1"
+             aria-label="Angle of the projection axis in degrees">
+      <output id="angle-out" for="angle">35°</output>
+    </div>
+    <p class="note" id="proj-note">—</p>
+    <p class="note">
+      In a real model the ambient space has thousands of dimensions and no single axis is asked to
+      carry everything: features are stored as directions in superposition, so one neuron can
+      participate in many concepts at once.
+    </p>
+  </section>
+
+  <details>
+    <summary>Why this matters</summary>
+    <p>
+      Embeddings are the model's only entry point for meaning, and the geometry is load-bearing.
+      Similar directions mean substitutable contexts, which is why cosine similarity retrieves
+      sensible neighbours and why analogy arithmetic sometimes works. It also explains the failure
+      modes: directions are reused, so "close" is not the same as "correct", and a vector can drift
+      toward an unrelated cluster when a word is polysemous. In a high-dimensional space most
+      vectors are nearly orthogonal, which is what lets a single layer store many features without
+      them interfering — until they do, and the model confuses two things that share a direction.
+    </p>
+  </details>
+
+  <p class="foot">Concept: <a href="../">word embeddings</a>, cosine similarity, superposition.</p>
+</main>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+
+  var P = {
+    cat: [-0.665, -0.324], dog: [-0.645, -0.403], fox: [-0.649, -0.289],
+    wolf: [-0.723, -0.292], horse: [-0.605, -0.408], mouse: [-0.631, -0.475],
+    bird: [-0.68, -0.361],
+    king: [0.604, 0.525], queen: [0.514, 0.613], prince: [0.518, 0.556],
+    princess: [0.463, 0.615], throne: [0.575, 0.556], crown: [0.615, 0.48],
+    man: [0.867, 0.153], woman: [0.777, 0.241], boy: [0.896, 0.207], girl: [0.803, 0.308],
+    one: [-0.419, 0.536], two: [-0.491, 0.527], three: [-0.549, 0.511],
+    four: [-0.391, 0.58], five: [-0.506, 0.424], ten: [-0.386, 0.46],
+    red: [0.453, -0.56], blue: [0.58, -0.522], green: [0.535, -0.595],
+    yellow: [0.552, -0.431], black: [0.63, -0.425], white: [0.424, -0.606],
+    run: [0.054, 0.778], jump: [-0.029, 0.839], walk: [0.026, 0.74],
+    think: [-0.07, 0.797], eat: [0.086, 0.816], sleep: [0, 0.76], write: [-0.09, 0.734],
+    table: [-0.247, -0.761], street: [-0.213, -0.854], water: [-0.114, -0.812],
+    book: [-0.06, -0.858]
+  };
+  var NAMES = Object.keys(P);
+  var GROUPS = [
+    { label: 'ANIMALS', at: [-0.80, -0.50] },
+    { label: 'ROYALTY', at: [0.68, 0.74] },
+    { label: 'PEOPLE', at: [0.98, 0.30] },
+    { label: 'NUMBERS', at: [-0.65, 0.73] },
+    { label: 'COLORS', at: [0.70, -0.70] },
+    { label: 'VERBS', at: [0.00, 0.98] },
+    { label: 'OBJECTS', at: [-0.30, -0.70] }
+  ];
+
+  var W = 700, H = 640, X0 = 80, Y0 = 50, SPAN = 540;
+  function px(v) { return X0 + (v + 1) / 2 * SPAN; }
+  function py(v) { return Y0 + (1 - (v + 1) / 2) * SPAN; }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+  function dot(a, b) { return a[0] * b[0] + a[1] * b[1]; }
+  function norm(a) { return Math.hypot(a[0], a[1]); }
+  function cos(a, b) { return dot(a, b) / (norm(a) * norm(b)); }
+  function degrees(c) { return Math.acos(Math.max(-1, Math.min(1, c))) * 180 / Math.PI; }
+
+  function neighbours(word, k) {
+    return NAMES.filter(function (n) { return n !== word; })
+      .map(function (n) { return { word: n, s: cos(P[word], P[n]) }; })
+      .sort(function (a, b) { return b.s - a.s || (a.word < b.word ? -1 : 1); })
+      .slice(0, k);
+  }
+
+  var selected = 'cat';
+  var analogy = { a: 'king', b: 'man', c: 'woman' };
+  var analogyAnswer = 'queen';
+  var angle = 35;
+
+  function renderMap() {
+    var s = '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="none"></rect>';
+    // frame
+    s += '<rect x="' + X0 + '" y="' + Y0 + '" width="' + SPAN + '" height="' + SPAN +
+         '" fill="none" stroke="#1a1f26"></rect>';
+    s += '<line x1="' + (X0 + SPAN / 2) + '" y1="' + Y0 + '" x2="' + (X0 + SPAN / 2) +
+         '" y2="' + (Y0 + SPAN) + '" stroke="#161b21"></line>';
+    s += '<line x1="' + X0 + '" y1="' + (Y0 + SPAN / 2) + '" x2="' + (X0 + SPAN) +
+         '" y2="' + (Y0 + SPAN / 2) + '" stroke="#161b21"></line>';
+
+    GROUPS.forEach(function (g) {
+      s += '<text x="' + px(g.at[0]) + '" y="' + py(g.at[1]) +
+           '" text-anchor="middle" class="grp svg-mut2" opacity="0.55" letter-spacing="2">' +
+           g.label + '</text>';
+    });
+
+    // projection axis
+    var th = angle * Math.PI / 180, c = Math.cos(th), sn = Math.sin(th);
+    var tmax = 1 / Math.max(Math.abs(c), Math.abs(sn));
+    s += '<line x1="' + px(-tmax * c) + '" y1="' + py(-tmax * sn) + '" x2="' + px(tmax * c) +
+         '" y2="' + py(tmax * sn) + '" stroke="#7dd3a0" stroke-width="1" opacity="0.35"></line>';
+
+    NAMES.forEach(function (n) {
+      var pr = P[n][0] * c + P[n][1] * sn;
+      var ax = pr * c, ay = pr * sn;
+      s += '<circle cx="' + px(ax) + '" cy="' + py(ay) + '" r="1.6" fill="#7dd3a0" opacity="0.5"></circle>';
+    });
+
+    neighbours(selected, 5).forEach(function (nb) {
+      s += '<line x1="' + px(P[selected][0]) + '" y1="' + py(P[selected][1]) + '" x2="' +
+           px(P[nb.word][0]) + '" y2="' + py(P[nb.word][1]) +
+           '" stroke="#7dd3a0" stroke-width="1" opacity="0.28"></line>';
+    });
+
+    if (analogyAnswer) {
+      s += '<circle cx="' + px(P[analogyAnswer][0]) + '" cy="' + py(P[analogyAnswer][1]) +
+           '" r="13" fill="none" stroke="#7dd3a0" stroke-dasharray="3 3" opacity="0.8"></circle>';
+    }
+
+    var nbs = {};
+    neighbours(selected, 5).forEach(function (n) { nbs[n.word] = true; });
+
+    NAMES.forEach(function (n) {
+      var cls = 'pt';
+      if (n === selected) cls += ' sel';
+      else if (nbs[n]) cls += ' nb';
+      s += '<g class="' + cls + '" data-w="' + n + '" tabindex="0" role="button" aria-label="' + n +
+           ', cosine ' + cos(P[selected], P[n]).toFixed(2) + ' to ' + selected + '">' +
+           '<circle class="dot" cx="' + px(P[n][0]) + '" cy="' + py(P[n][1]) + '" r="3.4"></circle>' +
+           '<text class="pt-label" data-x="' + px(P[n][0]) + '" data-y="' + (py(P[n][1]) + 4) +
+           '" x="' + (px(P[n][0]) + 7) + '" y="' + (py(P[n][1]) + 4) + '">' + esc(n) + '</text>' +
+           '</g>';
+    });
+    $('map').innerHTML = s;
+    placeLabels();
+  }
+
+  // Greedy label placement: try eight positions around each dot and keep the
+  // first one that does not collide with an already-placed label or any dot.
+  function placeLabels() {
+    var svg = $('map');
+    var placed = [];
+    var obstacles = [];
+    Array.prototype.forEach.call(svg.querySelectorAll('text.grp'), function (t) {
+      var r = t.getBBox();
+      obstacles.push({ x: r.x, y: r.y, w: r.width, h: r.height });
+    });
+    Array.prototype.forEach.call(svg.querySelectorAll('circle.dot'), function (c) {
+      obstacles.push({ x: +c.getAttribute('cx') - 4, y: +c.getAttribute('cy') - 4, w: 8, h: 8 });
+    });
+    var cands = [[7, 4, 'start'], [-7, 4, 'end'], [0, -9, 'middle'], [0, 16, 'middle'],
+      [7, -7, 'start'], [7, 16, 'start'], [-7, -7, 'end'], [-7, 16, 'end'],
+      [0, -21, 'middle'], [0, 28, 'middle'],
+      [13, 4, 'start'], [-13, 4, 'end'], [11, -13, 'start'], [-11, -13, 'end'],
+      [11, 22, 'start'], [-11, 22, 'end'], [0, -33, 'middle'], [0, 40, 'middle'],
+      [19, 4, 'start'], [-19, 4, 'end'], [16, 30, 'start'], [-16, 30, 'end']];
+
+    Array.prototype.forEach.call(svg.querySelectorAll('text.pt-label'), function (t) {
+      var w = Math.max(4, t.getBBox().width), h = 12;
+      var bx = +t.getAttribute('data-x'), by = +t.getAttribute('data-y');
+      var best = null, bestHits = 1e9;
+      cands.forEach(function (c) {
+        var x = bx + c[0], y = by + c[1];
+        var rx = c[2] === 'start' ? x : (c[2] === 'end' ? x - w : x - w / 2);
+        var rect = { x: rx, y: y - h, w: w, h: h };
+        var hits = 0;
+        placed.concat(obstacles).forEach(function (o) {
+          if (rect.x < o.x + o.w + 1 && rect.x + rect.w + 1 > o.x &&
+              rect.y < o.y + o.h + 1 && rect.y + rect.h + 1 > o.y) hits++;
+        });
+        if (hits < bestHits) { bestHits = hits; best = { x: x, y: y, a: c[2], r: rect }; }
+      });
+      t.setAttribute('x', best.x);
+      t.setAttribute('y', best.y);
+      t.setAttribute('text-anchor', best.a);
+      placed.push(best.r);
+    });
+  }
+
+  function renderNeighbours(word) {
+    word = word || selected;
+    $('nb-head').innerHTML = 'relative to <b>' + word + '</b>';
+    $('nb-body').innerHTML = neighbours(word, 5).map(function (n) {
+      return '<tr><td class="n">' + n.word + '</td><td class="n">' + n.s.toFixed(3) +
+             '</td><td>' + degrees(n.s).toFixed(1) + '°</td></tr>';
+    }).join('');
+  }
+
+  // Hover preview: recolour the existing points and swap the table, without
+  // rebuilding the SVG under the pointer (which would re-fire mouseover).
+  function preview(word) {
+    var nbs = {};
+    neighbours(word, 5).forEach(function (n) { nbs[n.word] = true; });
+    Array.prototype.forEach.call(document.querySelectorAll('#map .pt'), function (g) {
+      var name = g.getAttribute('data-w');
+      g.classList.toggle('nb', !!nbs[name]);
+      g.classList.toggle('sel', name === word);
+    });
+    renderNeighbours(word);
+  }
+
+  function renderAnalogy() {
+    var a = P[analogy.a], b = P[analogy.b], c = P[analogy.c];
+    var v = [a[0] - b[0] + c[0], a[1] - b[1] + c[1]];
+    var ranked = NAMES.filter(function (n) {
+      return n !== analogy.a && n !== analogy.b && n !== analogy.c;
+    }).map(function (n) { return { word: n, s: cos(v, P[n]) }; })
+      .sort(function (x, y) { return y.s - x.s; });
+    analogyAnswer = ranked[0].word;
+
+    $('ana-out').textContent = analogy.a + ' − ' + analogy.b + ' + ' + analogy.c +
+      ' = (' + v[0].toFixed(2) + ', ' + v[1].toFixed(2) + ')  →  ' + analogyAnswer;
+    $('ana-list').innerHTML = ranked.slice(0, 3).map(function (r, i) {
+      return '<span class="chip' + (i === 0 ? ' on' : '') + '">' + r.word + ' ' + r.s.toFixed(3) + '</span>';
+    }).join('');
+
+    var top = ranked[0].s;
+    if (top > 0.999) {
+      $('ana-note').textContent = 'Exact hit: these coordinates were built so the offset ' +
+        'b→a is parallel to c→' + analogyAnswer + '. Real embeddings get close, not exact.';
+    } else if (top > 0.95) {
+      $('ana-note').textContent = 'Close hit. The arithmetic points at a direction, not a word; ' +
+        'the nearest word is only a guess at what that direction means.';
+    } else {
+      $('ana-note').textContent = 'Weak hit. When the result lands near the origin, direction ' +
+        'carries little information and cosine similarity becomes noise. This is the failure mode ' +
+        'that makes analogy claims unreliable.';
+    }
+  }
+
+  function preservedPct() {
+    var th = angle * Math.PI / 180, c = Math.cos(th), sn = Math.sin(th);
+    var proj = {};
+    NAMES.forEach(function (n) { proj[n] = P[n][0] * c + P[n][1] * sn; });
+    var total = 0;
+    NAMES.forEach(function (n) {
+      var orig = neighbours(n, 5).map(function (x) { return x.word; });
+      var flat = NAMES.filter(function (m) { return m !== n; })
+        .sort(function (x, y) { return Math.abs(proj[x] - proj[n]) - Math.abs(proj[y] - proj[n]); })
+        .slice(0, 5);
+      var set = {};
+      flat.forEach(function (m) { set[m] = true; });
+      total += orig.filter(function (m) { return set[m]; }).length / 5;
+    });
+    return total / NAMES.length * 100;
+  }
+
+  function renderProjection() {
+    angle = Number($('angle').value);
+    $('angle-out').textContent = angle + '\u00b0';
+    var pct = preservedPct();
+    $('keep').textContent = pct.toFixed(0) + '%';
+    $('proj-note').textContent =
+      'At ' + angle + '\u00b0, ' + pct.toFixed(0) + '% of the original five-neighbour links survive ' +
+      'the projection. Every point still has a position on the axis; what is lost is the ordering ' +
+      'that made those neighbours neighbours.';
+    renderMap();
+  }
+
+  function paint() {
+    renderMap();
+    renderNeighbours();
+    renderAnalogy();
+    renderProjection();
+  }
+
+  $('map').addEventListener('click', function (e) {
+    var g = e.target.closest ? e.target.closest('.pt') : null;
+    if (!g) return;
+    selected = g.getAttribute('data-w');
+    renderMap();
+    renderNeighbours();
+  });
+  $('map').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var g = e.target.closest ? e.target.closest('.pt') : null;
+    if (!g) return;
+    e.preventDefault();
+    selected = g.getAttribute('data-w');
+    renderMap();
+    renderNeighbours();
+  });
+  $('map').addEventListener('mouseover', function (e) {
+    var g = e.target.closest ? e.target.closest('.pt') : null;
+    if (g) preview(g.getAttribute('data-w'));
+  });
+  $('map').addEventListener('mouseleave', function () { preview(selected); });
+
+  var selects = [['sa', 'a'], ['sb', 'b'], ['sc', 'c']];
+  selects.forEach(function (pair) {
+    var el = $(pair[0]);
+    el.innerHTML = NAMES.slice().sort().map(function (n) {
+      return '<option value="' + n + '">' + n + '</option>';
+    }).join('');
+    el.value = analogy[pair[1]];
+    el.addEventListener('change', function () {
+      analogy[pair[1]] = el.value;
+      renderAnalogy();
+      renderMap();
+    });
+  });
+
+  $('angle').addEventListener('input', renderProjection);
+
+  paint();
+})();
+</script>
+</body>
+</html>

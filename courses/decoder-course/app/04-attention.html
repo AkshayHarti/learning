@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>04 · Attention is differentiable lookup</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="kicker">LLM first principles · module 4</p>
+  <h1>Attention is differentiable lookup</h1>
+  <p class="sub">Every token asks a question, every token advertises a key, and the answer is a weighted average of what the other tokens carry.</p>
+</header>
+
+<main>
+  <section class="panel" aria-labelledby="h-grid">
+    <div class="panel-head">
+      <h2 id="h-grid">1 · One attention head</h2>
+      <span class="readouts">
+        <span>query <b id="r-q">it</b></span>
+        <span>row entropy <b id="r-ent">0</b> bits</span>
+      </span>
+    </div>
+    <p>
+      Rows are queries, columns are keys. Each row is a probability distribution: how much of that
+      token's output is read from every position. Click any row to inspect it.
+    </p>
+
+    <svg id="grid" viewBox="0 0 560 590" role="group"
+         aria-label="Eight by eight attention weight matrix"></svg>
+
+    <div class="ctl" style="margin-top:22px">
+      <label class="lbl" for="temp">temperature</label>
+      <input id="temp" type="range" min="0.25" max="4" value="1" step="0.05"
+             aria-label="Attention temperature">
+      <output id="temp-out" for="temp">1.00</output>
+    </div>
+
+    <div class="ctl">
+      <label class="lbl" for="mask">causal mask</label>
+      <span><input id="mask" type="checkbox" aria-label="Apply causal mask"></span>
+      <output id="mask-out">off</output>
+    </div>
+
+    <p class="note">
+      Without the mask, row 2 can read position 7. At training time that is the answer key sitting
+      inside the question: the model learns to copy the next token instead of predicting it, the loss
+      collapses to almost zero, and the damage only appears at inference when the future is missing.
+    </p>
+
+    <p class="note" id="temp-note">—</p>
+  </section>
+
+  <div class="grid2">
+    <section class="panel" aria-labelledby="h-top">
+      <div class="panel-head"><h2 id="h-top">2 · What this query reads</h2></div>
+      <p id="top-lead">—</p>
+      <table>
+        <thead><tr><th>key</th><th>weight</th><th>share</th></tr></thead>
+        <tbody id="top-body"></tbody>
+      </table>
+      <p class="note" id="top-note">—</p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-flow">
+      <div class="panel-head"><h2 id="h-flow">3 · The shape of one head</h2></div>
+      <svg viewBox="0 0 900 150" role="img" aria-label="Attention pipeline: Q times K transpose, scale, mask, softmax, times V">
+        <g font-family="ui-monospace,Menlo,monospace" font-size="11" fill="#b9b6ae">
+          <rect x="8" y="36" width="128" height="54" fill="none" stroke="#232830"></rect>
+          <text x="72" y="58" text-anchor="middle">Q</text>
+          <text x="72" y="76" text-anchor="middle" fill="#7dd3a0">8 × 4</text>
+
+          <text x="146" y="68" fill="#8b929e">·</text>
+
+          <rect x="160" y="36" width="128" height="54" fill="none" stroke="#232830"></rect>
+          <text x="224" y="58" text-anchor="middle">Kᵀ</text>
+          <text x="224" y="76" text-anchor="middle" fill="#7dd3a0">4 × 8</text>
+
+          <text x="300" y="68" fill="#8b929e">→</text>
+
+          <rect x="322" y="36" width="128" height="54" fill="none" stroke="#232830"></rect>
+          <text x="386" y="58" text-anchor="middle">logits</text>
+          <text x="386" y="76" text-anchor="middle" fill="#7dd3a0">8 × 8</text>
+
+          <text x="462" y="68" fill="#8b929e">→</text>
+
+          <rect x="484" y="36" width="150" height="54" fill="none" stroke="#232830"></rect>
+          <text x="559" y="58" text-anchor="middle">÷ √4 · mask · softmax</text>
+          <text x="559" y="76" text-anchor="middle" fill="#7dd3a0">8 × 8</text>
+
+          <text x="646" y="68" fill="#8b929e">→</text>
+
+          <rect x="668" y="36" width="110" height="54" fill="none" stroke="#232830"></rect>
+          <text x="723" y="58" text-anchor="middle">· V</text>
+          <text x="723" y="76" text-anchor="middle" fill="#7dd3a0">8 × 4</text>
+
+          <text x="790" y="68" fill="#8b929e">→</text>
+
+          <rect x="806" y="36" width="86" height="54" fill="none" stroke="#7dd3a0"></rect>
+          <text x="849" y="58" text-anchor="middle">out</text>
+          <text x="849" y="76" text-anchor="middle" fill="#7dd3a0">8 × 4</text>
+        </g>
+        <text x="8" y="120" font-size="11" fill="#8b929e" font-family="ui-monospace,Menlo,monospace">
+          shapes for one head, sequence 8, head dimension 4
+        </text>
+      </svg>
+      <p class="note">
+        Softmax runs across the key axis, independently for every query row. The scaling by √d keeps
+        the logits from growing with dimension, which would saturate the softmax and kill the gradient.
+      </p>
+    </section>
+  </div>
+
+  <details>
+    <summary>Why this matters</summary>
+    <p>
+      Attention is the only place where tokens exchange information, so almost every capability
+      traceable to context — coreference, syntax, copying a name from the prompt — is attention
+      finding the right row and column. Temperature and the causal mask are not cosmetic: a mask bug
+      during training lets the model read the token it is supposed to predict, and the loss collapses
+      while the model learns nothing useful. The softmax row is also where "attention" gets its
+      interpretability claims, and where those claims break: a high weight means information flowed,
+      not that the model "understood" the relationship.
+    </p>
+  </details>
+
+  <p class="foot">Concept: <a href="../">scaled dot-product attention</a>, softmax, causal masking.</p>
+</main>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var TOKENS = ['the', 'animal', 'stopped', 'because', 'it', 'was', 'too', 'tired'];
+
+  // Plausible weights, row by row. Normalised at load; logits are log(w).
+  var RAW = [
+    [0.02, 0.50, 0.18, 0.08, 0.06, 0.04, 0.02, 0.10],
+    [0.26, 0.34, 0.18, 0.06, 0.04, 0.01, 0.01, 0.10],
+    [0.10, 0.40, 0.18, 0.16, 0.04, 0.02, 0.02, 0.08],
+    [0.06, 0.30, 0.26, 0.01, 0.18, 0.05, 0.02, 0.12],
+    [0.05, 0.58, 0.08, 0.12, 0.01, 0.04, 0.02, 0.10],
+    [0.04, 0.24, 0.08, 0.10, 0.18, 0.02, 0.04, 0.30],
+    [0.02, 0.20, 0.04, 0.06, 0.08, 0.14, 0.02, 0.44],
+    [0.03, 0.36, 0.05, 0.08, 0.18, 0.16, 0.12, 0.02]
+  ];
+  var W = RAW.map(function (row) {
+    var s = row.reduce(function (a, b) { return a + b; }, 0);
+    return row.map(function (v) { return v / s; });
+  });
+
+  var selected = 4;
+  var DT = 4;
+
+  function currentMatrix() {
+    var T = Number($('temp').value);
+    var causal = $('mask').checked;
+    return W.map(function (row, i) {
+      var logits = row.map(function (w, j) {
+        if (causal && j > i) return -Infinity;
+        return Math.log(w);
+      });
+      var mx = Math.max.apply(null, logits);
+      var ex = logits.map(function (l) { return l === -Infinity ? 0 : Math.exp((l - mx) / T); });
+      var sum = ex.reduce(function (a, b) { return a + b; }, 0);
+      return ex.map(function (e) { return e / sum; });
+    });
+  }
+
+  function cellColor(t) {
+    var f = Math.pow(Math.max(0, Math.min(1, t)), 0.6);
+    var r = Math.round(15 + (125 - 15) * f);
+    var g = Math.round(19 + (211 - 19) * f);
+    var b = Math.round(24 + (160 - 24) * f);
+    return 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+
+  var LEFTX = 72, TOPY = 86, CELL = 46, GAP = 8, STEP = CELL + GAP;
+
+  function render() {
+    var P = currentMatrix();
+    var maxP = 0;
+    P.forEach(function (row) { row.forEach(function (p) { if (p > maxP) maxP = p; }); });
+
+    var out = '';
+    TOKENS.forEach(function (t, j) {
+      out += '<text x="' + (LEFTX + j * STEP + CELL / 2) + '" y="' + (TOPY - 12) +
+             '" text-anchor="start" class="svg-mut2" transform="rotate(-45 ' +
+             (LEFTX + j * STEP + CELL / 2) + ' ' + (TOPY - 12) + ')">' + t + '</text>';
+    });
+    TOKENS.forEach(function (t, i) {
+      out += '<text x="' + (LEFTX - 10) + '" y="' + (TOPY + i * STEP + CELL / 2 + 4) +
+             '" text-anchor="end" class="svg-lbl">' + t + '</text>';
+    });
+
+    for (var i = 0; i < 8; i++) {
+      for (var j = 0; j < 8; j++) {
+        var p = P[i][j];
+        var t = maxP > 0 ? p / maxP : 0;
+        var x = LEFTX + j * STEP, y = TOPY + i * STEP;
+        out += '<rect x="' + x + '" y="' + y + '" width="' + CELL + '" height="' + CELL +
+               '" fill="' + cellColor(t) + '"></rect>';
+        var label = p >= 0.005 ? p.toFixed(2).replace(/^0/, '') : (p > 0 ? '\u00b7' : '');
+        out += '<text x="' + (x + CELL / 2) + '" y="' + (y + CELL / 2 + 3.5) +
+               '" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="10" fill="' +
+               (t > 0.55 ? '#08110c' : '#7f8792') + '">' + label + '</text>';
+      }
+    }
+
+    for (var r = 0; r < 8; r++) {
+      out += '<rect x="' + (LEFTX - 4) + '" y="' + (TOPY + r * STEP - 4) + '" width="' +
+             (8 * STEP - GAP + 8) + '" height="' + (CELL + 8) + '" fill="transparent" ' +
+             'class="hit" data-i="' + r + '" tabindex="0" role="button" aria-label="query row ' +
+             r + ', ' + TOKENS[r] + '"></rect>';
+    }
+
+    out += '<rect x="' + (LEFTX - 8) + '" y="' + (TOPY + selected * STEP - 8) + '" width="' +
+           (8 * STEP - GAP + 16) + '" height="' + (CELL + 16) +
+           '" fill="none" stroke="#7dd3a0" stroke-width="1"></rect>';
+
+    $('grid').innerHTML = out;
+
+    var row = P[selected];
+    var ent = row.reduce(function (a, p) { return p > 0 ? a - p * Math.log2(p) : a; }, 0);
+    $('r-q').textContent = TOKENS[selected];
+    $('r-ent').textContent = ent.toFixed(2);
+
+    var ranked = row.map(function (p, j) { return { j: j, token: TOKENS[j], p: p }; })
+      .filter(function (r) { return r.p > 1e-9; })
+      .sort(function (a, b) { return b.p - a.p; }).slice(0, 3);
+
+    $('top-lead').innerHTML = 'The query <b class="mono">' + TOKENS[selected] +
+      '</b> pulls most of its information from:';
+    $('top-body').innerHTML = ranked.map(function (r) {
+      return '<tr><td class="n">' + r.token + '</td><td class="n">' + r.p.toFixed(3) +
+        '</td><td>' + (r.p * 100).toFixed(1) + '%</td></tr>';
+    }).join('');
+
+    var note = 'Row entropy ' + ent.toFixed(2) + ' bits of a possible 3.00. ';
+    if (ent < 1.0) note += 'Nearly a hard lookup: one key dominates.';
+    else if (ent < 2.2) note += 'A mixture of a few keys, the usual shape of a working head.';
+    else note += 'Almost uniform: this head is averaging everything and carrying little signal.';
+    $('top-note').textContent = note;
+
+    var T = Number($('temp').value);
+    $('temp-out').textContent = T.toFixed(2);
+    $('mask-out').textContent = $('mask').checked ? 'on' : 'off';
+    var tn;
+    if (T < 0.8) tn = 'Low temperature sharpens: the largest weight approaches 1 and the row becomes a lookup.';
+    else if (T > 1.8) tn = 'High temperature flattens: the row approaches a uniform average over keys.';
+    else tn = 'Temperature 1 reproduces the stored weights exactly, since logits are their logarithms.';
+    if ($('mask').checked) tn += ' With the mask on, every row ends at its own position and position 0 can only see itself.';
+    $('temp-note').textContent = tn;
+
+    if ($('mask').checked && selected > 0) {
+      $('top-note').textContent += ' Positions after ' + TOKENS[selected] + ' are masked out entirely.';
+    }
+  }
+
+  $('grid').addEventListener('click', function (e) {
+    var hit = e.target.closest ? e.target.closest('.hit') : null;
+    if (!hit) return;
+    selected = Number(hit.getAttribute('data-i'));
+    render();
+  });
+  $('grid').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var hit = e.target.closest ? e.target.closest('.hit') : null;
+    if (!hit) return;
+    e.preventDefault();
+    selected = Number(hit.getAttribute('data-i'));
+    render();
+  });
+
+  $('temp').addEventListener('input', render);
+  $('mask').addEventListener('change', render);
+  render();
+})();
+</script>
+</body>
+</html>
