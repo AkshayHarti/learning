@@ -4,5 +4,8 @@
   "promise": "A lessons-only course used by the render tests.",
   "kind": "lessons",
   "order": 20,
-  "lessons": { "root": "lessons", "order": ["01-intro"] }
+  "lessons": { "root": "lessons", "order": ["01-intro"] },
+  "assessments": [
+    { "id": "check", "title": "Queue check", "engine": "items", "file": "assessments/check.json" }
+  ]
 }

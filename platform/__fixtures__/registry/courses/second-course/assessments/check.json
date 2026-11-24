@@ -1,0 +1,17 @@
+{
+  "id": "check",
+  "title": "Queue check",
+  "passRatio": 0.5,
+  "items": [
+    {
+      "id": "q1",
+      "prompt": "What grows first when arrival rate passes service rate?",
+      "options": [
+        { "id": "a", "text": "Latency" },
+        { "id": "b", "text": "Throughput" }
+      ],
+      "answer": "a",
+      "explanation": "Arrivals exceed departures, so the queue length grows and latency climbs."
+    }
+  ]
+}
