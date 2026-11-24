@@ -1,0 +1,26 @@
+{
+  "name": "learning",
+  "version": "0.1.0",
+  "description": "A manifest-driven course platform: interactive labs, markdown lessons and assessments in one static site.",
+  "scripts": {
+    "test": "node --test",
+    "validate": "node platform/build/cli.mjs validate",
+    "build": "node platform/build/cli.mjs build",
+    "dev": "node platform/site/dev.mjs",
+    "new": "node scripts/new-course.mjs",
+    "deploy": "npm run build && npx wrangler deploy"
+  },
+  "license": "MIT",
+  "type": "module",
+  "private": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "marked": "^14.1.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}
