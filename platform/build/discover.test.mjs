@@ -32,6 +32,16 @@ test("rejects duplicate slug, slug/dir mismatch, missing entry and reserved slug
   assert.ok(errors.some((e) => e.includes("reserved slug assets")), errors.join("\n"));
 });
 
+test("a contents href pointing at another course is left for the link checker", async () => {
+  const { courses, errors } = await discoverCourses({ rootDir: root });
+  assert.deepEqual(errors, []);
+  const second = courses.find((c) => c.slug === "second-course");
+  assert.ok(
+    second.contents.some((item) => item.href === "/courses/demo-course/app/index.html"),
+    "fixture should cross-link",
+  );
+});
+
 test("a kind/content mismatch is an error naming the file and field", async () => {
   const { errors } = await discoverCourses({ rootDir: broken });
   assert.ok(errors.some((e) => e.includes("lessons") && e.includes("does not exist")), errors.join("\n"));

@@ -1,0 +1,33 @@
+{
+  "slug": "python-decoder",
+  "title": "Build an LLM from first principles",
+  "promise": "Eight weeks of numpy and pytest: tokenizer, attention, training, serving, evals.",
+  "kind": "lessons",
+  "status": "live",
+  "order": 30,
+  "hours": 44,
+  "tags": ["python", "llm", "transformers"],
+  "lessons": {
+    "root": "lessons",
+    "order": [
+      "syllabus",
+      "w01",
+      "w02",
+      "w03",
+      "w04",
+      "w05",
+      "w06",
+      "w07",
+      "w08",
+      "instructor",
+      "capstone"
+    ]
+  },
+  "contents": [
+    {
+      "title": "The five interactive explorables",
+      "href": "/courses/decoder-course/app/course.html",
+      "note": "weeks 1, 2, 3 and 5 point at these"
+    }
+  ]
+}

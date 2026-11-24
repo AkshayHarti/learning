@@ -1,0 +1,106 @@
+# Week 6 — Post-training: from continuation to behaviour
+
+**Time:** 5h · **Deliverable:** a DPO loss you can derive, and a defensible answer to "why RLVR?"
+**Prereq:** weeks 1–5
+
+## The one idea
+
+Pretraining gives you `P(next token | text)`. That is not the same as "answers
+the question", "follows the format", or "is correct". Post-training is a sequence
+of *narrower* objectives layered on the same model: supervised fine-tuning on
+demonstrations (imitate), preference optimisation on comparisons (prefer), and
+verifiable-reward RL on checkable answers (be right). Each one trades generality
+for behaviour, and each one has a characteristic failure mode.
+
+## Derive (90 min)
+
+1. **SFT** = next-token prediction on `(prompt, ideal answer)` pairs, loss masked
+   to the completion. Cheap, effective, and it teaches *style* far more reliably
+   than *knowledge*. Failure mode: imitation of the annotator, including their
+   mistakes.
+2. **Why not just SFT?** Because "better" is easier to judge than to write. A
+   human can rank two answers in 5 seconds and would take 20 minutes to author
+   the ideal one.
+3. **RLHF/PPO:** fit a reward model to pairwise preferences, then optimise the
+   policy against it with a KL penalty to the reference. Expensive: four models in
+   memory (policy, reference, reward, value).
+4. **DPO** removes the reward model algebraically. The optimal policy under a KL
+   constraint has a closed form, so the preference likelihood can be written
+   directly in terms of policy vs reference log-probs:
+   `-log σ(β[(log π(y_w) - log ρ(y_w)) - (log π(y_l) - log ρ(y_l))])`.
+   Same objective family, one fewer model. Note what `β` does: it controls how far
+   you are allowed to drift from the reference.
+5. **RLVR / GRPO:** when the answer is checkable (math, code, unit tests, schema
+   validity), skip the learned reward model entirely. Sample `G` completions per
+   prompt, score them with a verifier, and use the *group mean* as the baseline:
+   `A_i = (r_i - mean(r)) / std(r)`. No critic network. This is why
+   reasoning-model training got cheap, and why it only works where verification is
+   cheap.
+6. **LoRA:** freeze `W`, learn `BA` with `r << d`. Parameters drop by `d/r`, and
+   the adapter is a few MB you can ship separately. It works because the
+   *update* is low-rank, not the weight.
+
+Worked number: `d=4096, r=16, 32 layers, 2 matrices (q,v)` →
+`2 · 32 · 2 · 4096 · 16 ≈ 8.4M` trainable params versus `2 · 32 · 4096² ≈ 1.07B`
+frozen. That is 0.8%. Write that percentage down; it is the entire business case
+for fine-tuning services.
+
+## Build (150 min)
+
+`lab.py`:
+
+| Function | Contract |
+|---|---|
+| `sft_loss` | mean NLL over target tokens |
+| `sequence_logprob` | completion-only sum; the prompt is not a target |
+| `dpo_loss` | the formula above, numerically stable |
+| `grpo_advantage` | group-standardised rewards, zero-variance safe |
+| `lora_param_count` / `lora_ratio` | the arithmetic that sells LoRA |
+| `fit_power_law` | log-log least squares + `r²` + predictor |
+
+## Break it (45 min)
+
+1. Set `beta=0` in DPO. The margin term vanishes, loss is constant at `log 2`.
+   Explain why: with no KL constraint, the objective has no preference signal.
+2. Set `beta=10`. The model is pinned to the reference and learns nothing. Two
+   numbers bound the whole method.
+3. Feed `grpo_advantage` a group where every reward is identical. It must return
+   zeros, not `nan`. Division by a zero standard deviation is the most common bug
+   in every RL implementation ever written.
+4. Fit a power law to a curve that is *not* a power law (e.g. `y = log x`). Look
+   at `r²`. This is how you catch someone quoting a scaling law from three points.
+
+## Play (30 min)
+
+No explorable this week — the arithmetic is the intuition. Instead, re-read your
+week 1 `bits_per_char` number and compute: how many bits would a verifier need to
+supply per token to be worth as much as 10x more pretraining data? Write it down.
+
+## Explain back (60 min)
+
+In 250 words, answer as a lead: *we have 50k labelled preference pairs and a
+verifier for our domain. Which post-training path do we take, in what order, and
+what do we measure to know it worked?* Mention what you would do if the verifier
+turned out to be wrong 4% of the time — because it will be.
+
+## 2026 lens
+
+- **Still true:** SFT first, preferences second; KL/β controls drift; low-rank
+  updates work; verifiable rewards beat learned rewards wherever verification is
+  cheap.
+- **Changed:** the centre of gravity moved from RLHF to **RLVR** (verifiable
+  rewards) for reasoning, with GRPO-style group baselines replacing actor-critic.
+  Distillation from a stronger model is now a standard post-training step, and
+  synthetic data generation is part of the pipeline rather than a hack. LoRA is
+  the default for adaptation; full fine-tunes are for the few who own the base
+  model.
+- **Open:** whether RL on verifiable tasks *generalises* beyond those tasks, or
+  just sharpens them; and how much of the gain is the objective versus simply
+  spending more tokens (week 5's lesson).
+
+## Stretch
+
+Implement GRPO on your tiny model for a synthetic task with a cheap verifier
+(e.g. "output the third word of the prompt"). Two sampled completions per prompt,
+group-standardised reward, REINFORCE update. If it improves pass rate over SFT
+alone, you have implemented the 2025–26 reasoning-training loop at toy scale.

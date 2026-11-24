@@ -32,6 +32,11 @@ function assessmentHref(course, assessment) {
     : `${courseHref(course)}${course.app?.mountDir ?? "app"}/${assessment.href}`;
 }
 
+function contentsHref(course, item) {
+  // A leading slash means "somewhere else on this site", not "inside this course".
+  return item.href.startsWith("/") ? item.href : courseHref(course) + item.href;
+}
+
 export function renderCourse(course) {
   const pairs = metaPairs(course)
     .map(([term, value]) => `        <div><dt>${escapeHtml(term)}</dt><dd>${escapeHtml(value)}</dd></div>`)
@@ -44,7 +49,7 @@ export function renderCourse(course) {
 ${course.contents
   .map(
     (item) =>
-      `          <li><a href="${escapeHtml(courseHref(course) + item.href)}">${escapeHtml(item.title)}</a>${
+      `          <li><a href="${escapeHtml(contentsHref(course, item))}">${escapeHtml(item.title)}</a>${
         item.note ? ` <span class="note">${escapeHtml(item.note)}</span>` : ""
       }</li>`,
   )

@@ -41,6 +41,19 @@ test("a lessons course links its first lesson instead of an app entry", () => {
   assert.ok(!html.includes("/app/"));
 });
 
+test("a contents href starting with / links across courses instead of under this one", () => {
+  const html = renderCourse({
+    ...secondCourse,
+    contents: [
+      { title: "The explorables", href: "/courses/demo-course/app/course.html", note: "pairs with week 1" },
+      { title: "Own page", href: "01-intro.html" },
+    ],
+  });
+  assert.ok(html.includes('href="/courses/demo-course/app/course.html"'));
+  assert.ok(html.includes('href="/courses/second-course/01-intro.html"'));
+  assert.ok(!html.includes("/courses/second-course//courses/"));
+});
+
 test("landing escapes course text", () => {
   const html = renderCourse({ ...demoCourse, title: "<b>Bold</b>", promise: "a & b" });
   assert.ok(html.includes("&lt;b&gt;Bold&lt;/b&gt;"));

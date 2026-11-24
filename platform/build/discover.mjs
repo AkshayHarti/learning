@@ -85,6 +85,9 @@ export async function discoverCourses({ rootDir }) {
       }
     }
     for (const item of course.contents) {
+      // A leading slash means "elsewhere on this site" — another course, or a
+      // mounted app. The link checker verifies those once the tree is built.
+      if (item.href.startsWith("/")) continue;
       if ((await statKind(join(course.dir, item.href))) !== "file") {
         errors.push(`${file}: contents href ${item.href} does not exist`);
       }

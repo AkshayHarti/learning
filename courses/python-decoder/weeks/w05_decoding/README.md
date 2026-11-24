@@ -1,0 +1,105 @@
+# Week 5 — Decoding, and what "thinking longer" buys
+
+**Time:** 5h · **Deliverable:** a 5×4 grid of outputs from one prompt that you can explain line by line
+**Prereq:** weeks 1–4
+
+## The one idea
+
+A trained model gives you a probability distribution over the next token. It does
+not give you text. Every knob below — temperature, top-k, top-p, min-p, beam,
+retry-n-times — is a *decision procedure over that fixed distribution*. Once you
+see decoding as a separate layer, two things follow: most "model" quirks are
+decoding quirks, and reasoning models are a different *budget*, not a different
+picker.
+
+## Derive (75 min)
+
+1. Temperature `T` divides logits: `softmax(z/T)`. `T→0` = argmax (greedy),
+   `T=1` = the model's own distribution, `T>1` flattens toward uniform. It does
+   not add knowledge, it relocates mass.
+2. Top-k keeps `k` highest. Problem: `k` is scale-free but not
+   distribution-aware — the same `k` is too greedy on flat distributions and too
+   loose on peaked ones.
+3. Top-p (nucleus) keeps the smallest set with cumulative mass `≥ p`. Adapts to
+   shape. Failure mode: on a flat distribution it keeps dozens of tokens.
+4. Min-p keeps tokens with `p ≥ min_p · p_max`. Adaptive, cheap, and behaves like
+   "keep the tail only when the head is uncertain" — which is why it became
+   popular for local models.
+5. Order matters. Temperature before filtering changes *which* tokens survive;
+   filtering before temperature changes *how much* they get sharpened. Pick one
+   order, document it, never mix it with another model's default.
+6. Greedy is not "safe". It is deterministic and prone to loops: the most likely
+   continuation after you entered the loop is the loop.
+7. Reasoning models: the base distribution is unchanged. What changes is that the
+   model emits *intermediate tokens* that are then conditioned on. Extra tokens =
+   extra computation = a different conditional distribution. `accuracy` improves
+   because the distribution you finally sample from is better, not because the
+   sampler got smarter.
+
+Worked number: with `top_p=0.9` on a 5-token distribution
+`[0.45, 0.3, 0.15, 0.07, 0.03]`, you keep 3 tokens (cumulative 0.90) and discard
+12% of the mass. Renormalised they become `[0.5, 0.333, 0.167]`. Note the top
+token did *not* get more likely in absolute terms — the tail was deleted, so the
+relative probabilities shifted. This is why "just use top_p" changes the voice of
+a model, not only its randomness.
+
+## Build (150 min)
+
+`lab.py`:
+
+| Function | Contract |
+|---|---|
+| `temperature_softmax` | `T<=0` → one-hot at argmax |
+| `top_k_mask` | bool mask, deterministic tie-breaking |
+| `top_p_mask` | smallest set with cumulative mass ≥ p |
+| `min_p_mask` | `p ≥ min_p · max(p)` |
+| `sample` | the documented order, reproducible with a seed |
+| `majority_vote` | self-consistency: mode + its share |
+| `test_time_compute_tradeoff` | marginal accuracy per extra sample |
+
+## Break it (60 min)
+
+Generate the same prompt at `T ∈ {0, 0.3, 0.7, 1.0, 1.3}` × `top_p ∈ {1.0, 0.9, 0.5, none}`:
+
+```bash
+uv run python -m weeks.w05_decoding.grid "the cat that the"
+```
+
+Then, in order:
+1. Find a `T=0` output that loops. Note the repeating unit's length.
+2. Find where raising `T` stops adding variety and starts adding noise. That is
+   the empirical ceiling, and it moves per prompt.
+3. Set `min_p=0.1, top_p=1.0` and compare against `top_p=0.9`. Different
+   distributions get the same "sane" feel, which is the point.
+
+## Play (45 min)
+
+`explorables/05-sampling.html` — one fixed distribution, four controls, one
+seeded draw. Watch the kept-set change as you move `top_p` and then `min_p`.
+
+## Explain back (60 min)
+
+Write 200 words on this decision, as if to a product manager: *we can spend 8x
+more tokens per request on a reasoning model, or 8x more requests on
+self-consistency. Which do you choose and how would you know?* Your answer must
+contain a measurement, not an opinion. That is the whole job.
+
+## 2026 lens
+
+- **Still true:** the distribution is fixed; decoding is a policy; greedy loops;
+  sampling seeds are for reproducibility, not for quality.
+- **Changed:** the interesting knobs moved up a level. Structured/constrained
+  decoding (grammar-constrained JSON, tool schemas) is now standard and is
+  decoding-layer work, not prompting. Long "thinking" traces are ordinary
+  autoregressive tokens with a budget. Speculative decoding (a small model drafts,
+  a big model verifies) is how serving gets 2-3x without changing outputs
+  (week 7). And min-p has largely displaced top-k in open-weight practice.
+- **Open:** how much of "reasoning" is decoding policy versus a genuinely
+  different training objective. Week 6 is where that debate lives.
+
+## Stretch
+
+Implement constrained decoding for a JSON schema subset: at each step, mask any
+token that would make the prefix invalid. Measure how much slower it is per token
+and how much it improves parse success. You will have implemented the thing that
+makes every structured-output API work, and you will know why it is not free.
