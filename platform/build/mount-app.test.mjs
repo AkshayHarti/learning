@@ -89,3 +89,27 @@ test("a course without an app mounts nothing", async () => {
     await rm(distDir, { recursive: true, force: true });
   }
 });
+
+test("sourceDir mounts build output and skips sources, node_modules and dist", async () => {
+  const sourceDir = await mkdtemp(join(tmpdir(), "learning-src-"));
+  const distDir = await mkdtemp(join(tmpdir(), "learning-mount-"));
+  const { mkdir, writeFile } = await import("node:fs/promises");
+  try {
+    await mkdir(join(sourceDir, "assets"), { recursive: true });
+    await mkdir(join(sourceDir, "node_modules/pkg"), { recursive: true });
+    await mkdir(join(sourceDir, "dist"), { recursive: true });
+    await writeFile(join(sourceDir, "index.html"), "<!doctype html><html><body><h1>Built</h1></body></html>");
+    await writeFile(join(sourceDir, "assets/main.js"), "console.log(1)");
+    await writeFile(join(sourceDir, "node_modules/pkg/index.js"), "nope");
+    await writeFile(join(sourceDir, "dist/stale.js"), "nope");
+
+    const { files } = await mountApp({ course: indexCourse, distDir, sourceDir });
+    assert.equal(files, 2);
+    assert.ok(await exists(join(distDir, "courses/app-course/app/assets/main.js")));
+    assert.ok(!(await exists(join(distDir, "courses/app-course/app/node_modules"))));
+    assert.ok(!(await exists(join(distDir, "courses/app-course/app/dist"))));
+  } finally {
+    await rm(sourceDir, { recursive: true, force: true });
+    await rm(distDir, { recursive: true, force: true });
+  }
+});

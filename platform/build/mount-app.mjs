@@ -6,8 +6,11 @@ async function listFiles(dir, base = dir, out = []) {
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const full = join(dir, entry.name);
-    if (entry.isDirectory()) await listFiles(full, base, out);
-    else if (entry.isFile()) out.push(full.slice(base.length + 1));
+    if (entry.isDirectory()) {
+      // Dependencies and prior build output are not part of the course app.
+      if (entry.name === "node_modules" || entry.name === "dist" || entry.name === ".git") continue;
+      await listFiles(full, base, out);
+    } else if (entry.isFile()) out.push(full.slice(base.length + 1));
   }
   return out;
 }
@@ -48,13 +51,16 @@ function redirectHtml(entry) {
  * Copy one course's interactive app into the build output, unchanged except
  * for a single injected "All courses" pill in each HTML file.
  *
- * @param {{ course: object, distDir: string }} options
+ * `sourceDir` overrides the source tree: a course that compiles its app passes
+ * the build output instead of the sources.
+ *
+ * @param {{ course: object, distDir: string, sourceDir?: string }} options
  * @returns {Promise<{ files: number }>}
  */
-export async function mountApp({ course, distDir }) {
+export async function mountApp({ course, distDir, sourceDir }) {
   if (!course.app) return { files: 0 };
 
-  const source = join(course.dir, course.app.mountDir);
+  const source = sourceDir ?? join(course.dir, course.app.mountDir);
   const destination = join(distDir, "courses", course.slug, course.app.mountDir);
   const files = await listFiles(source);
   let written = 0;

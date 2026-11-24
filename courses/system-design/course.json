@@ -1,0 +1,12 @@
+{
+  "slug": "system-design",
+  "title": "System design, from first principles",
+  "promise": "Derive the numbers, break the system, then defend the tradeoff at Senior EM level.",
+  "kind": "app",
+  "status": "live",
+  "order": 40,
+  "hours": 13,
+  "tags": ["system-design", "interviews"],
+  "app": { "entry": "index.html", "build": "vite" },
+  "contents": []
+}

@@ -70,8 +70,8 @@ export async function build({ rootDir, distDir, siteUrl }) {
     }
 
     if (course.app) {
-      if (course.app.build === "vite") await buildViteApp(course, distDir);
-      await mountApp({ course, distDir });
+      const sourceDir = course.app.build === "vite" ? await buildViteApp(course) : undefined;
+      await mountApp({ course, distDir, sourceDir });
     }
 
     summaries.push({
@@ -96,24 +96,37 @@ export async function build({ rootDir, distDir, siteUrl }) {
 }
 
 /**
- * Run a course's own Vite build and place its output where the mount expects it.
- * Fails with the tail of the build log on non-zero exit.
+ * Run a course's own Vite build inside its app directory and return where the
+ * finished output lives. The mount copies from there, so sources and
+ * node_modules never reach the shipped tree.
+ *
+ * Fails with the tail of the build log on non-zero exit; a course that cannot
+ * compile must not ship half a site.
  *
  * @param {object} course
- * @param {string} distDir
+ * @returns {Promise<string>} absolute path to the built output
  */
-async function buildViteApp(course, distDir) {
+async function buildViteApp(course) {
   const { execFile } = await import("node:child_process");
   const { promisify } = await import("node:util");
   const run = promisify(execFile);
-
   const appDir = join(course.dir, course.app.mountDir);
-  await run("npm", ["ci", "--silent"], { cwd: appDir });
-  await run("npm", ["run", "build"], { cwd: appDir });
 
-  const source = join(course.dir, course.app.mountDir, "dist");
-  if (!(await exists(source))) {
-    throw new Error(`${course.slug}: app build "vite" produced no app/dist output`);
+  for (const [command, args] of [
+    ["npm", ["ci", "--silent"]],
+    ["npm", ["run", "build"]],
+  ]) {
+    try {
+      await run(command, args, { cwd: appDir, maxBuffer: 8 * 1024 * 1024 });
+    } catch (error) {
+      const log = `${error.stdout ?? ""}${error.stderr ?? ""}`.trim().split("\n").slice(-15).join("\n");
+      throw new Error(`${course.slug}: ${command} ${args.join(" ")} failed\n${log}`);
+    }
   }
-  await import("node:fs/promises").then((fs) => fs.cp(source, join(distDir, "courses", course.slug, "app"), { recursive: true }));
+
+  const output = join(appDir, "dist");
+  if (!(await exists(join(output, "index.html")))) {
+    throw new Error(`${course.slug}: app build "${course.app.build}" produced no dist/index.html`);
+  }
+  return output;
 }
