@@ -18,4 +18,35 @@
       }
     });
   }
+
+  // Copy buttons on code panels.
+  for (const button of document.querySelectorAll("[data-copy]")) {
+    button.addEventListener("click", async () => {
+      const panel = button.closest(".code-panel");
+      const code = panel?.querySelector("pre code")?.textContent ?? "";
+      const original = button.textContent;
+      try {
+        await navigator.clipboard.writeText(code);
+        button.textContent = "Copied";
+      } catch {
+        button.textContent = "Select and copy";
+      }
+      setTimeout(() => {
+        button.textContent = original;
+      }, 1500);
+    });
+  }
+
+  // Reading progress bar on lesson pages.
+  const progress = document.getElementById("reading-progress");
+  if (progress) {
+    const update = () => {
+      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+      const ratio = scrollable > 0 ? Math.min(1, window.scrollY / scrollable) : 0;
+      progress.style.width = `${ratio * 100}%`;
+    };
+    addEventListener("scroll", update, { passive: true });
+    addEventListener("resize", update, { passive: true });
+    update();
+  }
 })();
