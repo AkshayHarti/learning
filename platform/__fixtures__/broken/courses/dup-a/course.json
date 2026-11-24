@@ -1,0 +1,1 @@
+{ "slug": "demo-course", "title": "Dup", "promise": "Duplicate slug.", "kind": "lessons", "order": 1, "lessons": { "root": "lessons", "order": [] } }

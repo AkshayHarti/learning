@@ -1,0 +1,9 @@
+{
+  "slug": "draft-course",
+  "title": "Draft course",
+  "promise": "Not ready to be listed.",
+  "kind": "lessons",
+  "status": "draft",
+  "order": 30,
+  "lessons": { "root": "lessons", "order": ["01-intro"] }
+}

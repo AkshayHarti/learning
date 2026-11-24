@@ -1,0 +1,1 @@
+{ "slug": "missing-entry", "title": "Missing", "promise": "App entry file is absent.", "kind": "app", "order": 3, "app": { "entry": "index.html" } }

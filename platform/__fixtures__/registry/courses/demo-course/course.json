@@ -1,0 +1,10 @@
+{
+  "slug": "demo-course",
+  "title": "Demo course",
+  "promise": "Twelve interactive steps from next-token prediction to alignment.",
+  "kind": "app",
+  "order": 10,
+  "hours": 8,
+  "tags": ["demo"],
+  "app": { "entry": "index.html" }
+}

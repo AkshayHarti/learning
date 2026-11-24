@@ -1,0 +1,1 @@
+{ "slug": "not-the-dir-name", "title": "Mismatch", "promise": "Slug does not match directory.", "kind": "lessons", "order": 2, "lessons": { "root": "lessons", "order": [] } }
