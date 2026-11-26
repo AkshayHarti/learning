@@ -60,6 +60,41 @@ Every course is namespaced under `/courses/<slug>/`, so a course can own a
 `README.md`, a `course.html`, a `01-entropy.html` and an `assets/` directory
 without ever colliding with the platform's own paths.
 
+On Cloudflare, a request for a `*.html` path answers `307` to the extensionless
+form (`/courses/x/w01.html` → `/courses/x/w01`, `200` with the same file): Workers
+static assets canonicalise HTML with `auto-trailing-slash`. The content and the
+fragment survive the hop. Directory roots (`/courses/x/`) are served directly from
+`index.html`. Making the emitted links extensionless would remove that hop —
+tracked as a follow-up, not a defect in the output.
+
+## Deployed
+
+Live origin: **https://learning.akshay-r555.workers.dev** (first deploy 2026-11-26).
+
+- `wrangler.jsonc`: `assets.directory = ./dist`, `not_found_handling = "404-page"`,
+  no `main`, so the Worker has no script and no bindings. `npx wrangler deploy --dry-run`
+  reports a 0.31 KiB placeholder and no bindings.
+- Deploy: `npx wrangler login` once, then `npm run deploy` (build, then upload).
+
+Verified on the live origin 2026-11-26 in Chromium:
+
+| # | Check | Result |
+| --- | --- | --- |
+| 1 | `/` | 4 cards in order, no console errors |
+| 2 | `/courses/decoder-course/` | 5 labs listed; `app/course.html` rail of 12; next advances `#prediction` → `#tokens`; entropy slider 100 → 990 moved surprisal 8.97 → 0.10 bits |
+| 3 | `/courses/decision-models/app/assessment.html` | 18 items + 3 scenarios; commit → verdict; threshold lab at 0.80 revealed cost/case 10.250 and "64.43× the minimum" |
+| 4 | `/courses/python-decoder/w01.html` | lab + worked-solution panels, 2 copy buttons, next → w02, rail marks current page |
+| 5 | `/courses/system-design/app/` | home, module `#/m/latency-and-estimation` with 6 stages, `#/arena` with drill prompts |
+| 6 | pill on mounted apps | visible, topmost, `href="/"`, returns to `/` |
+| 7 | 360 px: home, landing, lesson | no horizontal scroll (after the fix below) |
+| 8 | keyboard only | Tab+Enter: home → course → app; Space checks an assessment radio, Tab+Enter commits it |
+
+Fix found by check 7: at 360 px the python lessons scrolled horizontally because
+a wide table and a long inline identifier could not shrink. `platform/site/shell.css`
+now lets `.prose` tables and code blocks scroll inside their own box and allows
+inline code to break (`overflow-wrap: anywhere`). Re-verified: page `scrollWidth`
+equals viewport on `/`, the decoder landing, `w01`, and `syllabus`.
+
 ## Mounted apps
 
 An app is mounted, not rewritten. Its files are byte-identical to the source

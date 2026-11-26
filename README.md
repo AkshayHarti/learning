@@ -3,7 +3,8 @@
 One public repo for interactive courses, written lessons and assessments.
 Static site, built from course directories, deployed on Cloudflare.
 
-Live at **<!-- URL after first deploy -->**.
+Live at **https://learning.akshay-r555.workers.dev** (Cloudflare Workers static
+assets). Source: **https://github.com/AkshayHarti/learning**.
 
 ## Courses
 
@@ -27,6 +28,10 @@ npm run deploy    # build, then wrangler deploy
 
 Requires Node ≥ 22. The only runtime dependencies are `marked` and `zod`;
 `wrangler` is a dev dependency.
+
+Deploying needs a Cloudflare login once (`npx wrangler login`), then every
+`npm run deploy` uploads `dist/` as static assets — no Worker script, no
+bindings, no database. `wrangler.jsonc` is the whole server configuration.
 
 ## Adding a course
 
