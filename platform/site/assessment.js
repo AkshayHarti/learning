@@ -31,6 +31,9 @@ function h(tag, attributes = {}, ...children) {
   for (const [key, value] of Object.entries(attributes)) {
     if (key === "class") node.className = value;
     else if (key === "text") node.textContent = value;
+    // Functions become real listeners: setAttribute("onclick", fn) would
+    // stringify the function and silently do nothing.
+    else if (typeof value === "function") node[key] = value;
     else node.setAttribute(key, value);
   }
   for (const child of children) node.append(child);
@@ -96,6 +99,8 @@ export function init(root, bank, storageKey) {
           { class: "assessment-misses" },
           ...result.misses.map((miss) => {
             const item = bank.items.find((candidate) => candidate.id === miss.itemId);
+            const optionText = (optionId) =>
+              item?.options.find((option) => option.id === optionId)?.text ?? optionId;
             const teach = item?.teach
               ? h("a", { href: item.teach.href, text: item.teach.label || "Revisit" })
               : null;
@@ -105,7 +110,9 @@ export function init(root, bank, storageKey) {
               h("p", { text: item?.prompt ?? miss.itemId }),
               h("p", {
                 class: "note",
-                text: `You chose ${miss.chosen ?? "nothing"}; the answer is ${miss.answer}.`,
+                text: `You chose ${miss.chosen ? `“${optionText(miss.chosen)}”` : "nothing"}; the answer is “${optionText(
+                  miss.answer,
+                )}”.`,
               }),
               ...(teach ? [teach] : []),
             );
@@ -143,6 +150,9 @@ export function init(root, bank, storageKey) {
     );
 
     const options = h("div", { class: "assessment-options" });
+    // Declared before the options so a choice can enable it: the button is
+    // rendered disabled and nothing else re-renders this view.
+    let commitButton = null;
     for (const option of item.options) {
       const id = `item-${item.id}-${option.id}`;
       const input = h("input", { type: "radio", name: `item-${item.id}`, id, value: option.id });
@@ -150,6 +160,7 @@ export function init(root, bank, storageKey) {
       input.disabled = isRevealed;
       input.addEventListener("change", () => {
         answers = { ...answers, [item.id]: option.id };
+        if (commitButton) commitButton.disabled = false;
       });
       const label = h("label", { for: id }, input, h("span", { text: option.text }));
       if (isRevealed && option.id === item.answer) label.classList.add("is-correct");
@@ -160,7 +171,7 @@ export function init(root, bank, storageKey) {
 
     const actions = h("div", { class: "assessment-actions" });
     if (!isRevealed) {
-      const commitButton = h("button", { type: "button", class: "button", text: "Check answer" });
+      commitButton = h("button", { type: "button", class: "button", text: "Check answer" });
       commitButton.disabled = answers[item.id] === undefined;
       commitButton.addEventListener("click", () => {
         if (answers[item.id] === undefined) return;

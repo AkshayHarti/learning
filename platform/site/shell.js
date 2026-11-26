@@ -23,17 +23,30 @@
   for (const button of document.querySelectorAll("[data-copy]")) {
     button.addEventListener("click", async () => {
       const panel = button.closest(".code-panel");
-      const code = panel?.querySelector("pre code")?.textContent ?? "";
+      const codeNode = panel?.querySelector("pre code");
+      const code = codeNode?.textContent ?? "";
       const original = button.textContent;
       try {
         await navigator.clipboard.writeText(code);
         button.textContent = "Copied";
       } catch {
-        button.textContent = "Select and copy";
+        // Clipboard writes can be denied (no permission, or an unfocused
+        // window). Select the code instead so one keystroke finishes the job
+        // rather than telling the reader to do something that did not happen.
+        if (codeNode && window.getSelection) {
+          const range = document.createRange();
+          range.selectNodeContents(codeNode);
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          button.textContent = "Selected — press ⌘C";
+        } else {
+          button.textContent = "Copy failed";
+        }
       }
       setTimeout(() => {
         button.textContent = original;
-      }, 1500);
+      }, 2500);
     });
   }
 

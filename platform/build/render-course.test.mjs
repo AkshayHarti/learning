@@ -25,6 +25,10 @@ test("meta row reports kind, hours and counts", () => {
   const lessons = renderCourse(secondCourse);
   assert.match(lessons, /<dd>lessons<\/dd>/);
   assert.match(lessons, /<dd>2 lessons<\/dd>/);
+
+  // An app that does not enumerate its screens must not advertise "0 labs".
+  const bare = renderCourse({ ...demoCourse, contents: [] });
+  assert.ok(!/<dt>Labs<\/dt>/.test(bare));
 });
 
 test("assessments link to the engine page or the shipped html", () => {

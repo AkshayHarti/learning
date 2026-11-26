@@ -21,7 +21,7 @@ function plural(count, one, many) {
 function metaPairs(course) {
   const pairs = [["Format", KIND_LABEL[course.kind] ?? course.kind]];
   if (course.hours) pairs.push(["Time", `${course.hours}h`]);
-  if (course.app) pairs.push(["Labs", plural(course.contents.length, "lab", "labs")]);
+  if (course.app && course.contents.length) pairs.push(["Labs", plural(course.contents.length, "lab", "labs")]);
   if (course.lessons) pairs.push(["Lessons", plural(course.lessons.order.length, "lesson", "lessons")]);
   return pairs;
 }
