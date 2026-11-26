@@ -1,0 +1,41 @@
+{
+  "id": "check",
+  "title": "Check yourself",
+  "intro": "Three questions about how this course is put together. Replace them with questions about your subject.",
+  "passRatio": 0.6,
+  "items": [
+    {
+      "id": "registration",
+      "prompt": "What registers a course with the site?",
+      "options": [
+        { "id": "a", "text": "Adding a directory with a valid course.json under courses/" },
+        { "id": "b", "text": "Adding a route to a routing table" },
+        { "id": "c", "text": "Adding a link to the navigation" }
+      ],
+      "answer": "a",
+      "explanation": "Discovery scans courses/*/course.json. There is no route table and no navigation file to edit."
+    },
+    {
+      "id": "draft",
+      "prompt": "What does \"status\": \"draft\" in the manifest do?",
+      "options": [
+        { "id": "a", "text": "Marks the course as unfinished in the UI" },
+        { "id": "b", "text": "Keeps the course out of the built site entirely" },
+        { "id": "c", "text": "Hides the course from search engines only" }
+      ],
+      "answer": "b",
+      "explanation": "A draft course is validated but not rendered: nothing is written to dist/ for it until you flip it to live."
+    },
+    {
+      "id": "order",
+      "prompt": "How does the lesson rail know what comes after this page?",
+      "options": [
+        { "id": "a", "text": "Alphabetical order of the files in lessons/" },
+        { "id": "b", "text": "The order listed in lessons.order in the manifest" },
+        { "id": "c", "text": "A prev/next link written into each markdown file" }
+      ],
+      "answer": "b",
+      "explanation": "lessons.order is the single source of truth for sequence; the build fails if an id in it has no file."
+    }
+  ]
+}

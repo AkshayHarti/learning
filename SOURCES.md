@@ -51,3 +51,20 @@ Two deliberate adaptations:
 - The old `explorables/index.html` hub page. Its five deep-dive pages and its
   simulation hub now live in `courses/decoder-course/app/`, and links that used
   to point at the hub were rewritten to the course landing (`../`).
+
+## Deliberately published
+
+The python course ships with what a normal course keeps private:
+
+- `weeks/*/solutions/` — the reference implementations, rendered in a
+  collapsed "Worked solution" panel beside the lab.
+- `INSTRUCTOR.md` — the teaching notes, as a normal lesson.
+
+This is a learning repo, not a graded one: a reader who gets stuck should be
+able to see the answer without leaving the page.
+
+## Template
+
+`templates/course/` is original to this repo — no third-party source. It is
+copied verbatim by `scripts/new-course.mjs`, and `scripts/new-course.test.mjs`
+builds from it on every test run, so the template cannot rot unnoticed.

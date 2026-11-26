@@ -31,6 +31,7 @@ const assessment = z
     file: z.string().min(1).optional(),
     href: z.string().min(1).optional(),
   })
+  .strict()
   .superRefine((value, ctx) => {
     if (value.engine === "items" && !value.file) {
       ctx.addIssue({ code: "custom", path: ["file"], message: 'is required when engine is "items"' });
@@ -55,19 +56,26 @@ export const courseSchema = z
         entry: z.string().min(1),
         build: z.enum(["vite"]).optional(),
       })
+      .strict()
       .optional(),
     lessons: z
       .object({
         root: z.string().min(1).default("lessons"),
         order: z.array(z.string().min(1)).default([]),
       })
+      .strict()
       .optional(),
     assessments: z.array(assessment).default([]),
     contents: z
-      .array(z.object({ title: z.string().min(1), href: z.string().min(1), note: z.string().optional() }))
+      .array(
+        z
+          .object({ title: z.string().min(1), href: z.string().min(1), note: z.string().optional() })
+          .strict(),
+      )
       .default([]),
     progressKey: z.string().min(1).optional(),
   })
+  .strict()
   .superRefine((value, ctx) => {
     const wantsApp = value.kind === "app" || value.kind === "hybrid";
     const wantsLessons = value.kind === "lessons" || value.kind === "hybrid";

@@ -1,0 +1,23 @@
+{
+  "slug": "example-course",
+  "title": "Example course",
+  "promise": "One sentence on what the learner can do when they finish.",
+  "kind": "lessons",
+  "status": "draft",
+  "order": 900,
+  "hours": 2,
+  "tags": [],
+  "lessons": {
+    "root": "lessons",
+    "order": ["01-intro"]
+  },
+  "assessments": [
+    {
+      "id": "check",
+      "title": "Check yourself",
+      "engine": "items",
+      "file": "assessments/check.json"
+    }
+  ],
+  "contents": []
+}

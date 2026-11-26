@@ -55,3 +55,33 @@ test("discovery never throws on malformed json", async () => {
   assert.equal(errors.length, 1);
   assert.ok(errors[0].includes("courses/bad/course.json"));
 });
+
+test("an unknown manifest key is an error, not silently ignored", async () => {
+  const { mkdtemp, mkdir, writeFile, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = await mkdtemp(join(tmpdir(), "learning-strict-"));
+
+  try {
+    await mkdir(join(dir, "courses", "typo-course"), { recursive: true });
+    await writeFile(
+      join(dir, "courses", "typo-course", "course.json"),
+      JSON.stringify({
+        slug: "typo-course",
+        title: "Typo",
+        promise: "A manifest with a misspelled field.",
+        kind: "app",
+        order: 1,
+        app: { entry: "index.html", bulid: "vite" },
+      }),
+    );
+
+    const { courses, errors } = await discoverCourses({ rootDir: dir });
+    assert.deepEqual(courses, []);
+    // A typo must fail the build: silently stripped keys publish a course with
+    // the behaviour the author did not ask for.
+    assert.ok(errors.some((e) => e.includes("bulid")), errors.join("\n"));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
