@@ -47,6 +47,11 @@ ships as a draft so it cannot go live by accident.
 
 Full reference: **[docs/ADDING-A-COURSE.md](docs/ADDING-A-COURSE.md)**.
 
+The courses previously lived in two separate repos (`llm-first-principles`,
+`system-design-first-principles`) and were consolidated here. What happened to
+those homes, and how to roll back a deploy, is in
+[docs/CUTOVER.md](docs/CUTOVER.md).
+
 ## How it fits together
 
 ```

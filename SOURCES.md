@@ -6,7 +6,8 @@ which commit, and how it is kept in sync.
 The built site is deployed at
 **https://learning.akshay-r555.workers.dev** (Cloudflare Workers static assets;
 source **https://github.com/AkshayHarti/learning**). Deploy mechanics and the
-live verification record are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#deployed).
+live verification record are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#deployed);
+what became of the original homes is in [docs/CUTOVER.md](docs/CUTOVER.md).
 
 ## Provenance
 
